@@ -1,0 +1,36 @@
+# Headhunter: Redemption (PS2)
+
+putarray 0 0 "FS.DAT"
+putarray 0 1 "FSKOLME.DAT"
+putarray 0 2 "FSPIENI.DAT"
+putarray 0 3 "FSPUKKI.DAT"
+
+for i = 0 < 4
+	getarray archive_name 0 i
+	open FDSE archive_name 0 EXISTS
+	if EXISTS == 1
+		callfunction parse_archive_info 1
+	endif
+next i
+
+startfunction parse_archive_info
+	math archive_base_offset = 1024
+	goto -0x800
+	get archive_header_offset long
+	math archive_header_offset + archive_base_offset
+	math archive_header_offset << 11
+	get archive_header_size long
+	get archive_header_entries long
+
+	goto archive_header_offset
+	for j = 0 < archive_header_entries
+		get name_hash long
+		get file_offset long
+		math file_offset + archive_base_offset
+		math file_offset << 11
+		get file_size long
+		
+		string file_name p "%08x." name_hash
+		log file_name file_offset file_size
+	next j
+endfunction

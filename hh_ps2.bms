@@ -1,0 +1,25 @@
+# Headhunter (PS2)
+
+putarray 0 0 "hhps2.afs"
+putarray 0 1 "hhps2s.afs"
+putarray 0 2 "hhps2m0.afs"
+putarray 0 3 "hhps2m1.afs"
+
+open FDSE "hhps2.afs"
+
+get afs_files long
+get hh02 long
+goto 0x800
+for i = 0 < afs_files
+	get file_offset long
+	get file_size long
+	get name_hash long
+	get file_04 long
+	get archive_number byte
+	getarray archive_name 0 archive_number
+	getdstring file_name 0xef
+	strlen name_size file_name
+	
+	open FDSE archive_name 1
+	log file_name file_offset file_size 1
+next i
