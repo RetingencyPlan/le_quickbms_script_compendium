@@ -1,0 +1,24 @@
+# Pipo Saru 2001 - PANTS.PAC
+
+open FDDE "pac" 0
+
+getdstring pac_title 32
+get pac_tocoff1 long
+get pac_tocsize1 long
+get pac_03 long
+
+math pac_tocoff1 << 11
+math pac_tocsize1 << 11
+
+log MEMORY_FILE10 pac_tocoff1 pac_tocsize1
+
+for
+	get pac_general_data line MEMORY_FILE10
+	if pac_general_data == "!-------- END --------!"
+		break
+	else
+		string pac_general_data R "," " "
+		string pac_full_data S pac_general_data pac_fname pac_foffset pac_fsize
+		log pac_fname pac_foffset pac_fsize
+	endif
+next

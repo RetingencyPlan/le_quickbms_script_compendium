@@ -1,0 +1,26 @@
+# Early Polyphony Digital archives
+# ---
+# Motor Toon Grand Prix/Motor Toon Grand Prix 2(PS1) - MTGPX.DAT/MTGPX2.DAT
+# Gran Turismo 2000(PS2) - GT2K.VOL
+
+get dat_size asize
+get ext extension
+
+endian big
+if ext == "dat" || ext == "vol"
+	do
+		get namesz byte
+		getdstring name namesz
+		get offset long
+		get size long
+		math offset << 11
+		if name != ""
+			log name offset size
+		else
+			break
+		endif
+		savepos curr_off
+	while curr_off < dat_size
+else
+	break
+endif

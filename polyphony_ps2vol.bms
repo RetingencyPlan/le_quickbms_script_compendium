@@ -1,0 +1,291 @@
+open FDDE "vol" 0
+get vol_size asize
+
+get vol_sign long
+if vol_sign == 0xacb990ad
+	print "\n hold on, this script will analyze the archive itself based on a 4-byte sign just so it can handle the whole extraction/reimport process \n this might take a lot longer than expected so hold on tight until everything's done "
+	savepos temp_01
+	goto 0
+	math vol_ver = 0
+	math c_01 = 0
+	do
+		savepos temp_02
+		get vol_check_01 long
+		get vol_check_02 long
+		if vol_check_01 == 0xacb990ad
+			math c_01 + 1
+			putarray c_01 0 temp_02
+			if vol_check_02 == 0x00020002
+				math vol_ver = 1
+			endif
+			if vol_check_02 == 0x00030001
+				math vol_ver = 2
+			endif
+		endif
+		math temp_02 += 0x800
+		goto temp_02
+	while temp_02 != vol_size
+	goto temp_01
+	print "\n right... parsing vol info now. \n"
+else
+	string unknown_vol_sign p "0x%08x" vol_sign
+	print "\n unknown VOL sign - %unknown_vol_sign% \n find me(AnonBaiter) at ZenHAX if you want "
+	cleanexit
+endif
+
+if vol_ver = 1
+	getarray vol_offset 1 0
+	goto vol_offset
+	get vol_sign_01 long
+	get min_ver short
+	get max_ver short
+	get info_size long
+	get name_offset_position long
+	get name_size long
+	xmath info_position_limit "(info_size - name_size) - 4"
+	xmath name_position_limit "name_offset_position + name_size" # you can also use info_size
+	math i = 0x14
+	for current_info_position = current_info_position < info_position_limit
+		savepos current_info_position
+		get entry_01 long
+		xmath entry_01_01 "(entry_01 >> 24) & 0xff"
+		putarray 11 i entry_01_01
+		xmath entry_01_02 "entry_01 & 0xffffff"
+		putarray 12 i entry_01_02
+		math i + 4
+		math j = entry_01_02
+		if entry_01_02 >= name_offset_position && entry_01_02 <= name_position_limit
+			set entry_02 string ""
+			savepos rofs_temp_01
+			goto entry_01_02
+			for x = 0
+				get string_byte byte
+				if string_byte = 0xff
+					break
+				else
+					math string_byte ^ -1
+					math string_byte & 0xff
+					string string_byte = string_byte
+					string entry_02 + string_byte
+				endif
+			next x
+			goto rofs_temp_01
+			putarray 13 j entry_02
+			if entry_01_01 == 0
+				get entry_03 long
+				putarray 14 i entry_03
+				math i + 4
+				get entry_04 long
+				putarray 15 i entry_04
+				math i + 4
+			elif entry_01_01 == 1
+				get entry_03 long
+				putarray 21 i entry_03
+				math i + 4
+				for j = 0 < entry_03
+					get entry_03_01 long
+					putarray 22 i entry_03_01
+					math i + 4
+				next j
+			elif entry_01_01 == 2
+				get entry_03 long
+				putarray 14 i entry_03
+				math i + 4
+				get entry_04 long
+				putarray 15 i entry_04
+				math i + 4
+				get entry_05 long
+				putarray 16 i entry_05
+				math i + 4
+			endif
+		endif
+	next current_info_position
+	math final_position = i
+	math initial_position = 0x14
+	for current_position = initial_position < final_position
+		getarray entry_type 11 current_position
+		getarray entry_name_location 12 current_position
+		math current_position + 4
+		if entry_name_location >= name_offset_position && entry_name_location <= name_position_limit
+			getarray entry_name_string 13 entry_name_location
+			if entry_type == 0
+				getarray file_offset 14 current_position
+				math current_position + 4
+				math file_offset << 11
+				getarray file_size 15 current_position
+				math current_position + 4
+				string temp_name p "normal\"
+				log temp_name file_offset file_size
+			elif entry_type == 1
+				getarray directory_entries 21 current_position
+				math current_position + 4
+				for j = 0 < directory_entries
+					getarray entry_info_offset 22 current_position
+					math current_position + 4
+				next j
+			elif entry_type == 2
+				math comp_type = 0
+				getarray file_offset 14 current_position
+				math current_position + 4
+				math file_offset << 11
+				getarray original_file_size 15 current_position
+				math current_position + 4
+				getarray compressed_file_size 16 current_position
+				math current_position + 4
+				goto file_offset
+				for cc = 1 <= 2
+					get compressed_sign byte
+					if cc = 1
+						if compressed_sign == 0x1f
+							math comp_type = 1
+						elif compressed_sign == 0xc5
+							math comp_type = 2
+						endif
+					elif cc = 2
+						if compressed_sign == 0x8b
+							math comp_type = 1
+						elif compressed_sign == 0xee
+							math comp_type = 2
+						endif
+					endif
+				next cc
+				if comp_type = 1
+					comtype gzip
+				elif comp_type = 2
+					comtype deflate_noerror
+					goto file_offset
+					get deflate_sign long
+					get original_file_size long
+					math original_file_size ^ -1
+					math original_file_size & 0xffffffff
+					math file_offset + 8
+				endif
+				string temp_name p "compressed\"
+				clog temp_name file_offset compressed_file_size original_file_size
+			endif
+		endif
+		math current_position - 1
+	next current_position
+endif
+if vol_ver == 2
+	getarray vol_offset 2 0
+	goto vol_offset
+	get vol_sign_02 long
+	get min_ver short
+	get max_ver short
+	get cycles_01 long
+	get cycles_02 long
+	get another_offset long
+	xmath base_offset "(vol_offset >> 11) + ((cycles_01 && 0x800) >> 11)"
+	putarray 0 0 base_offset
+	xmath encrypted_offset "vol_offset + 0x40"
+	goto encrypted_offset
+	math decoded_value = 0
+	math z1 = 0
+	for i = 1
+		if decoded_value <= cycles_01
+			math value_01 = 0x14AC327A
+			get file_value long
+			math value_01 * i
+			xmath decoded_value "(file_value ^ value_01) & 0xffffffff"
+			putarray 1 z1 decoded_value
+			xmath value_02 "(file_value ^ value_01) >> 32"
+			math z1 + 1
+		else
+			break
+		endif
+	next i
+	math p1 = z1
+	math p1 - 2
+	math p2 = p1
+	math p2 - 1
+	comtype deflate_noerror
+	math file_index = 0
+	for j = 0 <= p1
+		getarray info_offset 1 j
+		if j <= p2
+			math j + 1
+			getarray next_offset 1 j
+			math j - 1
+			xmath info_size "next_offset - info_offset"
+			xmath info_off_02 "info_offset + vol_offset"
+			math original_info_size = 0x800
+			clog MEMORY_FILE info_off_02 info_size original_info_size
+			filexor 0x55
+			get chunk_type short MEMORY_FILE
+			get chunk_entries short MEMORY_FILE
+			math chunk_entries >> 1
+			get chunk_number_01 long MEMORY_FILE
+			get chunk_number_02 long MEMORY_FILE
+			if chunk_type == 0
+				for m = 1 <= chunk_entries
+					set file_02 string ""
+					get file_01 long MEMORY_FILE
+					xmath previous_entry "((file_01 >> 24) & 0xff) | (((file_01 >> 16) & 0xff) << 8) | (((file_01 >> 8) & 0xff) << 16) | (((file_01) & 0xff) << 24)"
+					putarray 11 file_index previous_entry
+					for
+						get string_byte byte MEMORY_FILE
+						if string_byte >= 0 && string_byte <= 2
+							goto -1 MEMORY_FILE SEEK_CUR
+							break
+						else
+							string string_byte = string_byte
+							string file_02 + string_byte
+						endif
+					next
+					padding 4 MEMORY_FILE
+					putarray 12 file_index file_02
+					get file_03 byte MEMORY_FILE
+					putarray 13 file_index file_03
+					get file_04 long MEMORY_FILE
+					putarray 14 file_index file_04
+					if file_03 == 0
+					elif file_03 == 1
+						get file_05 time MEMORY_FILE
+						putarray 15 file_index file_05
+						get file_06 long MEMORY_FILE
+						putarray 16 file_index file_06
+					elif file_03 == 2
+						get file_05 time MEMORY_FILE
+						putarray 15 file_index file_05
+						get file_06 long MEMORY_FILE
+						putarray 16 file_index file_06
+						get file_07 long MEMORY_FILE
+						putarray 17 file_index file_07
+					endif
+					getdstring padding_02 3 MEMORY_FILE
+					math file_index + 1
+				next m
+			endif
+			filexor ""
+		endif
+	next j
+	math total_entries = file_index
+	for i = 0 < total_entries
+		getarray entry_point 11 i
+		getarray entry_name 12 i
+		getarray entry_type 13 i
+		getarray entry_position 14 i
+		if entry_type != 0
+			xmath file_offset "(entry_position + base_offset) << 11"
+			getarray file_timestamp 15 i
+		endif
+		if entry_type == 0
+		elif entry_type == 1
+			getarray file_size 16 i
+			string temp_name p "normal\"
+			log temp_name file_offset file_size
+		elif entry_type == 2
+			getarray compressed_file_size 16 i
+			getarray original_file_size 17 i
+			goto file_offset
+			get deflate_sign long
+			get original_file_size long
+			math original_file_size ^ -1
+			math original_file_size & 0xffffffff
+			math file_offset + 8
+			string temp_name p "compressed\"
+			clog temp_name file_offset compressed_file_size original_file_size
+		endif
+	next i
+endif

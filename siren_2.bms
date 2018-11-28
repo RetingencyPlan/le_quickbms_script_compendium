@@ -1,0 +1,31 @@
+# Siren 2/Forbidden Siren 2 - SPK.ROM/ROM.###
+
+open FDSE "SPK.ROM" 0
+
+idstring "SLPK"
+get slpk01 long
+get files long
+get name_pos long
+get slpk04 long
+get slpk05 long
+get slpk06 long
+get slpk07 long
+
+for i = 0 < files
+	get file_name_off long
+	math file_name_off + name_pos
+	get archive_name_off long
+	math archive_name_off + name_pos
+	get file_offset long
+	get file_size long
+	
+	savepos tmp1
+	goto file_name_off
+	get file_name string
+	goto archive_name_off
+	get archive_name string
+	goto tmp1
+	
+	open FDSE archive_name 1
+	log file_name file_offset file_size 1
+next i

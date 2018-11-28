@@ -1,0 +1,134 @@
+# Level5 games / Dark Cloud (2018-07-09)
+# original script by aluigi, modified by AnonBaiter
+
+get EXT extension
+
+if EXT == "HED"
+	open FDDE "DAT" 1
+    get hed_size asize
+    xmath files "hed_size / 0x50"
+    for i = 0 < files
+        getdstring file_name 0x40
+        get file_offset long
+        get file_size long
+        get hed_03 long
+        get hed_04 long
+
+		log file_name file_offset file_size 1
+    next i
+elif EXT == "HD2"
+	open FDDE "DAT" 1
+	for
+		get name_offset long
+		get hd2_02 long
+		get hd2_03 long
+		get hd2_04 long
+		get file_offset long
+		get file_size long
+		get hd2_07 long
+		get hd2_08 long
+		if file_offset == 0 && file_size == 0
+			break
+		endif
+
+		savepos temp_01
+		goto name_offset
+		get file_name string
+		goto temp_01
+
+		log file_name file_offset file_size 1
+	next
+elif EXT == "HD3"
+	open FDDE "DAT" 1
+	for offset = 0
+		get name_offset long
+		get file_size long
+		get hd3_03 long
+		get hd3_04 long
+		if file_size == 0 && hd3_03 == 0
+			break
+		endif
+
+		savepos temp_01
+		goto name_offset
+		get file_name string
+		goto temp_01
+
+		log file_name file_offset file_size 1
+		math file_offset + file_size
+		math file_offset x 0x800
+	next
+elif EXT == "HD4"
+	open FDDE "DAT" 1
+	for
+		get name_offset long
+		get file_size long
+		get file_offset long
+		if file_size == 0 && file_offset == 0
+			break
+		endif
+		
+		savepos temp_01
+		goto name_offset
+		get file_name string
+		goto temp_01
+		
+		math file_offset << 11
+		log file_name file_offset file_size 1
+	next
+elif EXT == "HD6"
+	open FDDE "DAT" 1
+	idstring "HD6\0"
+	get keyword_info_offset long
+	get keyword_info_size long
+	get total_keywords long
+	get hd6_04 long
+	get keyword_fetch_offset long
+	get keyword_fetch_size long
+	get hd6_07 long
+	get hd6_08 long
+	get files long
+	get file_info_offset long
+	get hd6_11 long
+	get hd6_size long
+	xmath last_duplicate_file "files - 2"
+	
+	goto keyword_info_offset
+	for a = 0 < total_keywords
+		get keyword string
+		putarray 0 a keyword
+	next a
+	
+	goto file_info_offset
+	for i = 0 < files
+		getdstring hd6_file_info 8
+		getvarchr byte_01 hd6_file_info 0 byte
+		getvarchr byte_02 hd6_file_info 1 byte
+		getvarchr byte_03 hd6_file_info 2 byte
+		getvarchr byte_04 hd6_file_info 3 byte
+		getvarchr byte_05 hd6_file_info 4 byte
+		getvarchr byte_06 hd6_file_info 5 byte
+		getvarchr byte_07 hd6_file_info 6 byte
+		getvarchr byte_08 hd6_file_info 7 byte
+		set file_name string ""
+		xmath name_offset "(((byte_03 & 0x03) << 16) | (byte_02 << 8) | byte_01) + keyword_fetch_offset"
+		savepos temp_01
+		goto name_offset
+		do
+			savepos temp_02
+			get keyword_number variable4
+			getarray keyword 0 keyword_number
+			string file_name + keyword
+		while keyword_number != 0
+		goto temp_01
+		xmath file_offset "((byte_05 << 14) | (byte_04 << 6) | (byte_03 >> 2)) << 11"
+		xmath file_size "((byte_08 << 16) | (byte_07 << 8) | byte_06) << 4"
+
+		if file_size != 0
+			log file_name file_offset file_size 1
+		endif
+	next i
+elif EXT == "DAT"
+	print " this script can only work with .hed/.hd2/.hd3/.hd4/.hd6 files at this point. \n the .hd5 file isn't covered however so if you can confirm that file's existence for me let me know. "
+	cleanexit
+endif
