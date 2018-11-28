@@ -1,0 +1,59 @@
+# Amplitude (PS2) - main.ark
+
+open FDDE "ark" 0
+
+comtype gzip
+
+get ark_01 long
+get ark_files long
+for i = 0 < ark_files
+	get ark_02 long
+	putarray 1 i ark_02
+	get ark_03 long
+	putarray 2 i ark_03
+	get ark_04 long
+	putarray 3 i ark_04
+	get ark_05 long
+	putarray 4 i ark_05
+	get ark_06 long
+	putarray 5 i ark_06
+next i
+get ark_name_size long
+savepos ark_pos_01
+xmath ark_pos_02 "ark_pos_01 + ark_name_size"
+goto ark_pos_02
+get ark_entries long
+for k = 0 < ark_entries
+	get ark_08 long
+	putarray 6 k ark_08
+next k
+
+for x = 0 < ark_files
+	set ark_file_name string ""
+	getarray ark_file_offset 1 x
+	getarray ark_string_id_01 2 x
+	getarray ark_string_id_02 3 x
+	getarray ark_file_size 4 x
+	getarray ark_decompressed_gzip_size 5 x
+	
+	for y = 0 < 2
+		if y = 0
+			getarray ark_string_offset 6 ark_string_id_02
+		elif y = 1
+			getarray ark_string_offset 6 ark_string_id_01
+		endif
+		math ark_string_offset + ark_pos_01
+		goto ark_string_offset
+		get ark_string string
+		string ark_file_name + /
+		string ark_file_name + ark_string
+	next y
+	
+	putarray 8 x ark_file_name
+	if ark_decompressed_gzip_size != 0
+		string ark_file_name > ".gz"
+		clog ark_file_name ark_file_offset ark_file_size ark_decompressed_gzip_size
+	else
+		log ark_file_name ark_file_offset ark_file_size
+	endif
+next x

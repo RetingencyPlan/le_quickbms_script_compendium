@@ -1,0 +1,79 @@
+# Frequency - *.ARK
+
+open FDDE "ark" 0
+
+comtype gzip
+
+idstring "ARK\x00"
+get ark01 long
+get ark_info_off1 long
+get ark_files long
+get ark_info_off2 long
+get ark_entries long
+get ark_info_off3 long
+get ark_names long
+get ark_header_size long
+get ark_off_number long
+
+goto 0x40
+get ark_originalpath string
+
+goto ark_info_off1
+for i1 = 0 < ark_files
+	get a01 long
+	get a02 long
+	get a03 short
+	get a04 short
+	get a05 long
+	get a06 long
+	get a07 long
+	putarray 1 i1 a01
+	putarray 2 i1 a02
+	putarray 3 i1 a03
+	putarray 4 i1 a04
+	putarray 5 i1 a05
+	putarray 6 i1 a06
+	putarray 7 i1 a07
+next i1
+
+goto ark_info_off2
+for i2 = 0 < ark_entries
+	get b01 long
+	get b02 long
+	putarray 10 i2 b01
+	putarray 11 i2 b02
+next i2
+
+goto ark_info_off3
+for i3 = 0 < ark_names
+	get c0 string
+	putarray 20 i3 c01
+next i3
+
+for i = 0 < ark_files
+	getarray a01_hash 1 i
+	getarray a02_name_off 2 i
+	getarray a03_folder_id 3 i
+	getarray a04_alignment 4 i
+	getarray a05_initial_offset 5 i
+	getarray a06_size 6 i
+	getarray a07_zsize 7 i
+	
+	getarray b01_hash 10 a03_folder_id
+	getarray b02_name_off 11 a03_folder_id
+	
+	goto a02_name_off
+	get name string
+	string name > ".gz"
+	goto b02_name_off
+	get path string
+	
+	xmath offset "(a05_initial_offset * ark_off_number) + a04_alignment"
+	
+	string fname p "%s/%s" path name
+	if a06_size == a07_zsize
+		log fname offset a06_size
+	else
+		clog fname offset a06_size a07_zsize
+	endif
+next i
