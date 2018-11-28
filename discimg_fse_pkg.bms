@@ -1,0 +1,14 @@
+# Crisis Core: Final Fantasy VII - discimg.fse/discimg.pkg
+
+open FDDE "fse" 0
+open FDDE "pkg" 1
+
+get FSE_SIZE asize 0
+xmath FSE_FILES "FSE_SIZE / 12"
+
+for i = 0 < FSE_FILES
+	get OFFSET long
+	math OFFSET << 11
+	get SIZE long
+	get FSE03 long
+next i

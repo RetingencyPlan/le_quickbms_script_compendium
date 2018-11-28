@@ -1,0 +1,71 @@
+# Virtuos - *.vbf
+# or "VirtuosBigFile" as known through FFXX-2_LAUNCHER.exe
+# ---
+# Final Fantasy X/X-2 HD Remaster(PC)
+# Final Fantasy XII The Zodiac Age(PC)
+# ---
+# "rewritten" from aluigi's ffxhd.bms script
+
+math ram = 0
+# set this (^) to 1 for a MEMORY_FILE extraction process
+
+comtype zlib_noerror
+idstring "SRYK"
+get sryk_headersize long
+get files long
+get zero long
+math sryk_off2 = 0x10
+xmath sryk_off3 "(files * 0x10) + sryk_off2"
+xmath sryk_off4 "(files * 0x20) + sryk_off3"
+xmath sryk_off5 "sryk_off4 + 4"
+goto sryk_off4
+get sryk_namesize long
+xmath sryk_fcoff1 "sryk_off4 + sryk_namesize"
+
+for i = 0 < files
+    savepos sryk_tmp1
+    goto sryk_off2
+    getdstring md5_hash 0x10
+    goto sryk_off3
+    get idx1 long
+    get idx2 long
+    get size longlong
+    get offset longlong
+    get name_off longlong
+	
+    math name_off += sryk_off5
+    goto name_off
+    get name string
+	
+    xmath sryk_fcoff2 "sryk_fcoff1 + (idx1 * 2)"
+    xmath chunks "(size / 0x10000) + 1"
+    goto sryk_fcoff2
+	
+	if ram = 1
+		putvarchr MEMORY_FILE size 0
+		log MEMORY_FILE 0 0
+	endif
+	
+    append
+    for x = 0 < chunks
+        get chunk_size short
+        if chunk_size == 0
+            math chunk_size = 0x10000
+        endif
+		if ram = 0
+			clog name offset chunk_size 0x10000
+		elif ram = 1
+			clog MEMORY_FILE offset chunk_size 0x10000
+		endif
+        math offset + chunk_size
+    next x
+    append
+	
+	if ram = 1
+		log name 0 size MEMORY_FILE
+	endif
+	
+    math sryk_off2 += 0x10
+    math sryk_off3 += 0x20
+    goto sryk_tmp1
+next i
