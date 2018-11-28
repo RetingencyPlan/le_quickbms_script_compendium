@@ -1,0 +1,276 @@
+# Metal Gear Solid (PS1)
+
+quickbmsver "0.8.5"
+
+get archive_name filename
+get full_size asize
+
+if archive_name == "stage.dir"
+
+	get header_size long
+	xmath entries "header_size / 12"
+	for stg = 0 < entries
+		getdstring stage_name 8
+		string manifest_name p "%s.manifest" stage_name
+		open FDSE manifest_name 1 EXISTS
+		set base_string string stage_name
+		math array_for_hardcoded_name_hash = 0
+		callfunction begin_hashing_procedure 1
+		if EXISTS == 1
+			callfunction look_for_string 1
+		endif
+		get stage_offset long
+		math stage_offset << 11
+		
+		savepos tmp1
+		goto stage_offset
+		get base_number short
+		get stage_size short
+		math stage_a01 = 0
+		for
+			get stage_c01 short
+			putarray 1 stage_a01 stage_c01
+			get stage_c02 byte
+			putarray 2 stage_a01 stage_c02
+			get stage_c03 byte
+			putarray 3 stage_a01 stage_c03
+			get stage_c04 long
+			putarray 4 stage_a01 stage_c04
+			math stage_a01 + 1
+
+			if stage_c01 == 0
+			if stage_c02 == 0
+			if stage_c03 == 0
+			if stage_c04 == 0
+				break
+			endif
+			endif
+			endif
+			endif
+		next
+		math stage_size << 11
+		math stage_a01 - 1
+		math stage_entries = stage_a01
+		xmath offset_position_per_entry "stage_offset + (base_number << 11)"
+		for j = 0 < stage_entries
+			set category_name_per_entry string ""
+			set singular_name_per_entry string ""
+			set extension_name_per_entry string ""
+			set full_name_per_entry string ""
+			getarray hardcoded_name_hash_per_entry 1 j
+			for k = 0 < entry_for_hardcoded_name_hash
+				getarray found_string 11 k
+				getarray calculated_hash 12 k
+				if hardcoded_name_hash_per_entry == calculated_hash
+					string singular_name_per_entry p "%s" found_string
+					break
+				else
+					string singular_name_per_entry p "%04x" hardcoded_name_hash_per_entry
+				endif
+			next k
+			getarray first_category_letter_per_entry 2 j
+			getarray first_extension_letter_per_entry 3 j
+			string extension_name_per_entry p "%02x" first_extension_letter_per_entry
+			getarray overall_size_per_entry 4 j
+
+			if first_category_letter_per_entry == 0x63
+				string category_name_per_entry p "%s/cache/" stage_name
+			elif first_category_letter_per_entry == 0x6e
+				string category_name_per_entry p "%s/nocache/" stage_name
+			elif first_category_letter_per_entry == 0x72
+				string category_name_per_entry p "%s/resident/" stage_name
+			elif first_category_letter_per_entry == 0x73
+				if first_extension_letter_per_entry == 0x65 | first_extension_letter_per_entry == 0x6d | first_extension_letter_per_entry == 0x77
+					string category_name_per_entry p "%s/sound/" stage_name
+				else
+					# "start", "static", whatever that means
+					string category_name_per_entry p "%s/s/" stage_name
+				endif
+			else
+				string category_name_per_entry p "%s/" stage_name
+			endif
+
+			if first_extension_letter_per_entry == 0x64
+				# these 0x64 entries(thereby referred to as "dynamic") have literally ZERO names assigned into them
+				# what this means is they must be read from the archive and that's the end of that
+				savepos tmp2
+				goto offset_position_per_entry
+				xmath dynamic_entry_offset_limit "offset_position_per_entry + overall_size_per_entry"
+				math dynamic_entry_current_position = offset_position_per_entry
+				for
+					set singular_name_per_dynamic_entry string ""
+					set extension_name_per_dynamic_entry string ""
+					set full_name_per_dynamic_entry string ""
+					goto dynamic_entry_current_position
+					if dynamic_entry_current_position == dynamic_entry_offset_limit
+						break
+					endif
+					get hardcoded_name_hash_per_dynamic_entry short
+					for k = 0 < entry_for_hardcoded_name_hash
+						getarray found_string 11 k
+						getarray calculated_hash 12 k
+						if hardcoded_name_hash_per_dynamic_entry == calculated_hash
+							string singular_name_per_dynamic_entry p "%s" found_string
+							break
+						else
+							string singular_name_per_dynamic_entry p "%04x" hardcoded_name_hash_per_dynamic_entry
+						endif
+					next k
+					get first_extension_letter_per_dynamic_entry short
+					string extension_name_per_dynamic_entry p "%02x" first_extension_letter_per_dynamic_entry
+					string extension_name_per_dynamic_entry - " "
+					get overall_size_per_dynamic_entry long
+					savepos offset_position_per_dynamic_entry
+					string full_name_per_dynamic_entry p "%s%s.%s" category_name_per_entry singular_name_per_dynamic_entry extension_name_per_dynamic_entry
+					log full_name_per_dynamic_entry offset_position_per_dynamic_entry overall_size_per_dynamic_entry
+					math dynamic_entry_current_position + overall_size_per_dynamic_entry
+					math dynamic_entry_current_position + 8
+				next
+				goto tmp2
+
+				math offset_position_per_entry += overall_size_per_entry
+				math offset_position_per_entry x 0x800
+			else
+				string full_name_per_entry p "%s%s.%s" category_name_per_entry singular_name_per_entry extension_name_per_entry
+				if first_category_letter_per_entry == 0x63
+					if first_extension_letter_per_entry == 0xff
+						math offset_position_per_entry x 0x800
+					else
+						xmath k "j + 1"
+						getarray overall_size_as_per_next_entry 4 k
+						xmath alternative_size_per_entry "overall_size_as_per_next_entry - overall_size_per_entry"
+						log full_name_per_entry offset_position_per_entry alternative_size_per_entry
+						math offset_position_per_entry += alternative_size_per_entry
+					endif
+				else
+					log full_name_per_entry offset_position_per_entry overall_size_per_entry
+					math offset_position_per_entry += overall_size_per_entry
+					math offset_position_per_entry x 0x800
+				endif
+			endif
+		next j
+		goto tmp1
+	next stg
+elif archive_name == "demo.dat"
+elif archive_name == "vox.dat"
+else
+	print "%archive_name% isn`t supported with this script. Contact me."
+	cleanexit
+endif
+
+startfunction hashing_algorithm
+	strlen name_size base_string
+	math hash = 0
+	math result = 0
+	
+	for x1 = 0 < name_size
+		getvarchr string_char base_string x1 byte
+		xmath hash "(((hash << 5) | (hash >> 11)) + string_char) & 0xffff"
+	next x1
+	
+	xmath result "hash & 0xffff"
+endfunction
+
+startfunction look_for_string
+	get manifest_size asize 1
+	do
+		savepos manifest_offset 1
+		get base_string line 1
+		callfunction begin_hashing_procedure 1
+		savepos manifest_offset 1
+	while manifest_offset < manifest_size
+endfunction
+
+startfunction begin_hashing_procedure
+	callfunction hashing_algorithm 1
+	putarray 11 array_for_hardcoded_name_hash base_string
+	putarray 12 array_for_hardcoded_name_hash result
+	math array_for_hardcoded_name_hash + 1
+	math entry_for_hardcoded_name_hash = array_for_hardcoded_name_hash
+endfunction
+/*
+
+if archive_name == "demo" || archive_name == "vox"
+	set vpx 1
+	for y = 0
+		log MEMORY_FILE 0 0
+		append
+		do
+			savepos offset2
+			get dt1 byte
+			get dt2 threebyte
+			if dt1 != 0
+				if dt1 != 0xf0
+					log MEMORY_FILE offset2 dt2
+				else
+					log MEMORY_FILE offset2 dt2
+					break
+				endif
+			else
+				break
+			endif
+			math offset2 += dt2
+			goto offset2
+		while dt1 != 0
+		append
+		get fsize asize MEMORY_FILE
+		if archive_name == "demo"
+			string name p= "%s_%08d.dmo" archive_name vpx
+		elif archive_name == "vox"
+			string name p= "%s_%08d.vox" archive_name vpx
+		endif
+		if fsize != 0
+			log name 0 fsize MEMORY_FILE
+		endif
+		math vpx += 1
+	next y
+else
+	print "%ARCHIVE_NAME%.%ARCHIVE_EXT% isn`t supported with this script. Contact me."
+	cleanexit
+endif
+*/
+startfunction assign_extension
+	if extension_letter == 0x61
+		set stage_file_extension string "a"
+		# aar, azm
+	elif extension_letter == 0x62
+		set stage_file_extension string "bin"
+	elif extension_letter == 0x63
+		set stage_file_extension string "con"
+	elif extension_letter == 0x65
+		set stage_file_extension string "efx"
+	elif extension_letter == 0x67
+		set stage_file_extension string "gcx"
+		# or gcl
+	elif extension_letter == 0x68
+		set stage_file_extension string "hzm"
+		# or hzd
+	elif extension_letter == 0x69
+		set stage_file_extension string "img"
+	elif extension_letter == 0x6b
+		set stage_file_extension string "kmd"
+	elif extension_letter == 0x6c
+		set stage_file_extension string "lit"
+	elif extension_letter == 0x6d
+		set stage_file_extension string "m"
+		# mdx, mt3
+	elif extension_letter == 0x6f
+		set stage_file_extension string "oar"
+	elif extension_letter == 0x70
+		set stage_file_extension string "p"
+		# pcc, pcx
+	elif extension_letter == 0x71
+		set stage_file_extension string "q"
+	elif extension_letter == 0x72
+		set stage_file_extension string "r"
+		# rar, res, rpk
+	elif extension_letter == 0x73
+		set stage_file_extension string "sgt"
+	elif extension_letter == 0x77
+		set stage_file_extension string "wvx"
+	elif extension_letter == 0x7a
+		set stage_file_extension string "zmd"
+	else
+		set stage_file_extension string ""
+	endif
+endfunction
