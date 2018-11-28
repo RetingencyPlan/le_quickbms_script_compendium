@@ -1,0 +1,24 @@
+# Kinetica (PS2) - *.WAD
+
+open FDDE "wad" 0
+
+get wad_size asize 0
+savepos offset
+do
+	goto offset
+	get dummy1 long
+	get type long
+	get size long
+	get dummy4 long
+	getdstring name 0x10
+	savepos offset
+	if type == 0x18
+		math size == 0
+	endif
+	string fname p "%04x/%s" type name
+	if size != 0
+		log fname offset size
+	endif
+	math offset += size
+	math offset x= 0x10
+while offset < wad_size
