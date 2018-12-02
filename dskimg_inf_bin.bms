@@ -29,7 +29,7 @@ startfunction PARSE_INF
 		get OFFSET long
 		get SIZE long
 		
-		math OFFSET * 0x800
+		math OFFSET << 11
 		if OFFSET u>= DAT_SIZE
 			break
 		endif
