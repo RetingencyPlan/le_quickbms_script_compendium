@@ -1,0 +1,30 @@
+open FDDE "smv" 0
+
+get smv_size asize 0
+get smv_name basename 0
+math smv_current_position = 0
+math smv_current_block_size = 0x800
+
+append
+for i = 0
+	goto smv_current_position
+	if smv_current_position >= smv_size
+		break
+	endif
+	get smv_next_block_size long
+	get smv_02 long
+	get smv_03 long
+	get smv_04 long
+	savepos smv_chunk_offset
+	if smv_04 != 0
+		xmath smv_03_02 "smv_03 - 0x10"
+		string smv_vn p "%s.m2v" smv_name
+		log smv_vn smv_chunk_offset smv_02
+		math smv_chunk_offset + smv_03_02
+		string smv_an p "%s.pcm" smv_name
+		log smv_an smv_chunk_offset smv_04
+	endif
+	math smv_current_position + smv_current_block_size
+	math smv_current_block_size = smv_next_block_size
+next i
+append
