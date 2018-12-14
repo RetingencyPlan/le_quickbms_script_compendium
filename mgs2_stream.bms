@@ -1,0 +1,115 @@
+# Kojima Productions - chunked multimedia formats(cutscene, movie, sound/bgm/voice, etc.)
+
+get STREAM_BNAME basename
+get STREAM_ECHECK long
+endian guess STREAM_ECHECK
+goto 0
+
+#math VIDEO_HANDLE = 0
+math VIDEO_CHUNKS = 0
+math MTAF_HANDLE = 0
+math MTAF_CHUNKS = 0
+
+log MEMORY_FILE 0 0
+append
+do
+	savepos OFFSET1
+	get DUMMY01 long
+	get SIZE1 long
+	get COUNT1 long
+	get ALTSIZE1 long
+	savepos OFFSET2
+	xmath SIZE2 "SIZE1 - 0x10"
+	
+	# these extensions are unconfirmed for now
+	/*
+	if DUMMY01 == 0x00000001
+		string DUMMY01_EXT p "_01.pcm"
+	elif DUMMY01 == 0x00000002
+		string DUMMY01_EXT p "_01.dmx"
+	elif DUMMY01 == 0x00000003
+		string DUMMY01_EXT p "_02.dmx"
+	elif DUMMY01 == 0x00000004
+		string DUMMY01_EXT p "_01.scn"
+	elif DUMMY01 == 0x00000005
+		string DUMMY01_EXT p "_03.dmx"
+	elif DUMMY01 == 0x0000000e
+		string DUMMY01_EXT p ".pss"
+	elif DUMMY01 == 0x0000000f
+		string DUMMY01_EXT p ".ipu"
+	elif DUMMY01 == 0x00000020
+		if VIDEO_CHUNKS = 0
+			savepos SDSTREAM_TMP1
+			goto OFFSET2
+			get VIDEO_SIGN1 long
+			get VIDEO_SIGN2 long
+			get VIDEO_SIGN3 long
+			get VIDEO_SIGN4 long
+			if VIDEO_SIGN1 == 0x75b22630 && VIDEO_SIGN2 == 0x11cf668e && VIDEO_SIGN3 == 0xaa00d9a6 && VIDEO_SIGN4 == 0x6cce6200
+				string DUMMY01_EXT p ".wmv"
+			endif
+			if VIDEO_SIGN1 == 0x20000000# && VIDEO_SIGN2 == 0x70797466 && VIDEO_SIGN3 == 0x6d6f7369 && VIDEO_SIGN4 == 0x00020000
+				string DUMMY01_EXT p ".mp4"
+			endif
+			goto SDSTREAM_TMP1
+		endif
+		math VIDEO_CHUNKS + 1
+	elif DUMMY01 == 0x00010001
+		string DUMMY01_EXT p "_02.pcm"
+	elif DUMMY01 == 0x00020001
+		string DUMMY01_EXT p "_03.pcm"
+	elif DUMMY01 == 0x00030001
+		string DUMMY01_EXT p ".msf"
+	elif DUMMY01 == 0x00040001
+		if SIZE2 == ALTSIZE1
+			# do nothing
+		else
+			math SIZE2 == ALTSIZE1
+		endif
+		string DUMMY01_EXT p ".xwma"
+	elif DUMMY01 == 0x00050001
+		string DUMMY01_EXT p ".9tav"
+	elif DUMMY01 == 0x00110001
+		string DUMMY01_EXT p ".mtaf"
+		math MTAF_HANDLE = 1
+	else
+		string DUMMY01_EXT p ".%08x" DUMMY01
+	endif
+	*/
+	if DUMMY01 == 0x00010001
+		math MTAF_HANDLE = 1
+	elif DUMMY01 == 0x00040001
+		if SIZE2 == ALTSIZE1
+			# do nothing
+		else
+			math SIZE2 == ALTSIZE1
+		endif
+	elif DUMMY01 == 0x00110001
+		math MTAF_HANDLE = 1
+	endif
+	
+	string DUMMY01_EXT p ".%08x" DUMMY01
+	string STREAM_FNAME1 p "%s%s" STREAM_BNAME DUMMY01_EXT
+	
+	if MTAF_HANDLE = 0
+		if DUMMY01 != 0x10 && DUMMY01 != 0xf0
+			log STREAM_FNAME1 OFFSET2 SIZE2
+		endif
+	elif MTAF_HANDLE = 1
+		if MTAF_CHUNKS != 0
+			if ALTSIZE1 != 0
+				if DUMMY01 != 0x10 && DUMMY01 != 0xf0
+					log STREAM_FNAME1 OFFSET2 SIZE2
+				endif
+			endif
+		else
+			log STREAM_FNAME1 OFFSET2 SIZE2
+		endif
+		math MTAF_CHUNKS + 1
+		math MTAF_HANDLE = 0
+	endif
+
+	math OFFSET1 += SIZE1
+	goto OFFSET1
+while DUMMY01 != 0xf0
+append
