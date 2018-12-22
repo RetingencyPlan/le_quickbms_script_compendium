@@ -1,0 +1,21 @@
+# Headhunter (Dreamcast, PS2) - *.AHF
+
+idstring "AHFF"
+get ahf_02 long
+get ahf_files long
+get ahf_offset long
+math ahf_offset + 0x10
+goto ahf_offset
+for i = 0 < ahf_files
+	get file_info_offset long
+	savepos ahff_temp_position
+	math file_info_offset + 0x10
+	goto file_info_offset
+	get file_offset long
+	get file_size long
+	get ahff_03 long
+	get file_name string
+	log "" file_offset file_size
+	padding 4
+	goto ahff_temp_position
+next i

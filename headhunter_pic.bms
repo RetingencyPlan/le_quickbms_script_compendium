@@ -1,0 +1,91 @@
+# Headhunter (PS2) - *.pic
+# 32-bit BGRA(in that order) image format
+
+open FDDE "pic" 0
+get pic_path fullname
+get pic_name basename
+get pic_size asize
+math pic_offset = 8
+
+get pic_color_map_entries short
+get pic_height short
+get pic_width short
+get pic_04 short
+xmath raw_image_offset "(pic_color_map_entries * 4)"
+xmath raw_image_size "(pic_size - pic_offset) - raw_image_offset"
+math pic_offset + raw_image_offset
+if pic_color_map_entries == 0
+	xmath pixel_entries "raw_image_size / 4"
+else
+	math pixel_entries = raw_image_size
+endif
+for i = 0 < pic_color_map_entries
+	get color_map_info long
+	xmath attribute "(color_map_info >> 24) & 0xff"
+	putarray 4 i attribute
+	xmath blue "(color_map_info >> 16) & 0xff"
+	putarray 3 i blue
+	xmath green "(color_map_info >> 8) & 0xff"
+	putarray 2 i green
+	xmath red "color_map_info >> & 0xff"
+	putarray 1 i red
+next i
+
+log MEMORY_FILE 0 0
+put 0 byte MEMORY_FILE
+put 0 byte MEMORY_FILE
+put 2 byte MEMORY_FILE
+put 0 short MEMORY_FILE
+put 0 short MEMORY_FILE
+put 0x20 byte MEMORY_FILE
+put 0 short MEMORY_FILE
+put 0 short MEMORY_FILE
+put pic_height short MEMORY_FILE
+put pic_width short MEMORY_FILE
+put 0x20 byte MEMORY_FILE
+xmath image_descriptor "(0 << 6) | (1 << 5) | (0 << 4) | 8"
+put image_descriptor byte MEMORY_FILE
+goto pic_offset
+for px = 0 < pixel_entries
+	if pic_color_map_entries == 0
+		get red byte
+		get green byte
+		get blue byte
+		get attribute byte
+		put blue byte MEMORY_FILE
+		put green byte MEMORY_FILE
+		put red byte MEMORY_FILE
+		put attribute byte MEMORY_FILE
+	elif pic_color_map_entries == 0x10
+		get image_byte byte
+		for nibble = 0 < 2
+			if nibble = 0
+				xmath image_nibble "(image_byte >> 4) & 0x0f"
+			elif nibble = 1
+				xmath image_nibble "image_byte & 0x0f"
+			endif
+			getarray red 1 image_nibble
+			getarray green 2 image_nibble
+			getarray blue 3 image_nibble
+			getarray attribute 4 image_nibble
+			put blue byte MEMORY_FILE
+			put green byte MEMORY_FILE
+			put red byte MEMORY_FILE
+			put attribute byte MEMORY_FILE
+		next nibble
+	elif pic_color_map_entries == 0x100
+		get image_byte byte
+		getarray red 1 image_byte
+		getarray green 2 image_byte
+		getarray blue 3 image_byte
+		getarray attribute 4 image_byte
+		put blue byte MEMORY_FILE
+		put green byte MEMORY_FILE
+		put red byte MEMORY_FILE
+		put attribute byte MEMORY_FILE
+	endif
+next px
+
+string tga_name p "%s.TGA" pic_name
+get tga_size asize MEMORY_FILE
+log tga_name 0 tga_size MEMORY_FILE
