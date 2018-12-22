@@ -1,5 +1,4 @@
-# Headhunter (PS2) - *.pic
-# 32-bit BGRA(in that order) image format
+# Headhunter (PS2) - *.pic->*.tga
 
 open FDDE "pic" 0
 get pic_path fullname
