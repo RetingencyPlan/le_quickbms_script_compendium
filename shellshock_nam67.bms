@@ -1,0 +1,29 @@
+# Shellshock Nam' 67 (PS2, XBOX, PC)
+
+open FDSE "ASSETS.DAT" 0
+
+get dat_basename basename
+get dat_header_size long
+get dat_files long
+get dat_assets long
+get dat_04 long
+get dat_05 long
+get dat_06 long
+for i = 0 < FILES
+	get file_size long
+	get file_offset long
+	get file_name_offset long
+	math file_name_offset + 0x18
+	savepos dat_tmp1
+	goto file_name_offset
+	get file_name string
+	goto dat_tmp1
+	get dat_number long
+	if dat_number == 0
+		string archive_name p "%s.DAT" dat_basename
+	else
+		string archive_name p "%s%02d.DAT" dat_basename dat_number
+	endif
+	open FDSE archive_name 1
+	log file_name file_offset file_size 1
+next i
