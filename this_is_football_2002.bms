@@ -1,53 +1,145 @@
 # SCEE London Studio/Team Soho/SCEE - *.PAK files
 
-math INFO_OFF1 == 0x190
+math main_info_offset == 0x190
 
-getdstring ARCHIVE_TYPE 8
-if ARCHIVE_TYPE != "SceeWhPC" && ARCHIVE_TYPE != "SceeWhPk"
+getdstring pak_archive_sign 8
+if pak_archive_sign != "SceeWhPC" && ARCHIVE_TYPE != "SceeWhPk"
 	break
 endif
-getdstring TIMESTAMP 20
-get TABLE_SIZE long
-get TOTAL_FILES long
-getdstring RANDOM 0x80
+getdstring pak_timestamp 20
+get table_size long
+get total_files long
+getdstring random_garbage 0x80
 for t1 = 0 < 28
-	get DUMMY03 long
+	get file_name_offsets long
 next t1
 for t2 = 1 < 0x20
-	getdstring EXT01 4
-	putarray 10 t2 EXT01
+	getdstring file_extension 4
+	putarray 1 t2 file_extension
 next t2
 
-goto INFO_OFF1
-get FOLDERS1 long
-get SIZE1 long
-if FOLDERS1 != 0 && SIZE1 != 0
+goto main_info_offset
+get directory_overall_entries long
+get directory_info_size_01 long
+if directory_overall_entries != 0 && directory_info_size_01 != 0
 	# copy-pasted straight from aluigi's getaway.bms script
-	savepos INFO_OFF2
-	xmath FOLDERS2 "FOLDERS1 * 0x74"
-	xmath INFO_OFF2 "INFO_OFF2 + FOLDERS2"
-
-    for FOLDER = 0 < FOLDERS1
-
-        getdstring EXT2 4
-        getdstring NAME2 0x60
-        get ENTRIES1 long
-        get ENTRIES2 long
-        get ENTRIES3 long
-        get OFFSET2 long
-
-        savepos TMP1
-        math OFFSET2 + INFO_OFF2
-        goto OFFSET2
-		
-		if ENTRIES2 == 0 || ENTRIES2 == 1
-			if ENTRIES1 > ENTRIES3
-				math ENTRIES == ENTRIES1
-			elif ENTRIES1 < ENTRIES3
-				math ENTRIES == ENTRIES3
-			elif ENTRIES1 == ENTRIES3
-				math ENTRIES == ENTRIES3
+	savepos directory_info_offset
+	xmath directory_entry_info_size "directory_overall_entries * 0x74"
+	xmath directory_overall_base_offset "directory_info_offset + directory_entry_info_size"
+    for directory = 0 < directory_overall_entries
+    	math singular_directory_entries = 0
+        getdstring directory_extension 4
+        getdstring directory_name 0x60
+        get directory_entries_01 long
+        get directory_entries_02 long
+        get directory_entries_03 long
+        get directory_offset long
+        savepos directory_temp_position_01
+        math directory_offset + directory_overall_base_offset
+        goto directory_offset
+		if directory_entries_02 == 0 || directory_entries_02 == 1
+			if directory_entries_01 > directory_entries_03
+				math singular_directory_entries == directory_entries_01
+			elif directory_entries_01 < directory_entries_03
+				math singular_directory_entries == directory_entries_03
+			elif directory_entries_01 == directory_entries_03
+				math singular_directory_entries == directory_entries_03
 			endif
+		else
+			xmath singular_directory_entries "(directory_entries_03 - directory_entries_02) + 1"
+		endif
+        for i = 0 < singular_directory_entries
+            get file_size long
+            get file_offset long
+            if pak_archive_sign == "SceeWhPC"
+                get file_name_hash long
+            endif
+            math file_offset << 11
+            if file_size != 0
+				string file_name p "%s\%d.%s" directory_name i directory_extension
+                if file_size & 0xc0000000 # 0x40000000 and 0x80000000
+					savepos directory_temp_position_02
+					goto file_offset
+					get original_file_size long
+					goto directory_temp_position_02
+                    math file_size & 0x3fffffff
+					string TMP_NAME2 p "%s[compressed_0x%08x]" file_name original_file_size
+                    log TMP_NAME2 file_offset file_size
+                else
+                    log file_name file_offset file_size
+                endif
+            endif
+        next i
+        goto directory_temp_position_01
+    next directory
+	xmath goto_info_offset "directory_overall_base_offset + directory_info_size_01"
+else
+	math goto_info_offset == 0x198
+endif
+
+goto goto_info_offset
+set previous_file_name string ""
+
+for
+	get file_offset threebyte
+	get name_recycling_number byte
+	get name_size byte
+	get file_id short
+	get file_size long
+	
+	if pak_archive_sign == "SceeWhPC"
+		get file_name_hash long
+	endif
+	
+	if file_offset == 0
+	if name_recycling_number == 0
+	if name_size == 0
+	if file_id == 0
+	if file_size == 0
+		break
+	endif
+	endif
+	endif
+	endif
+	endif
+	
+	math file_offset << 11
+	set individual_file_name string ""
+	xmath last_name_byte "name_size - 1"
+	for n = 0 < name_size
+		get string_char byte
+		if n = last_name_byte
+			math extension_number = string_char
+		endif
+		string string_char = string_char
+		string individual_file_name + string_char
+	next n
+	if name_recycling_number == 0
+		set previous_file_name string individual_file_name
+		strlen previous_name_size previous_file_name
+		set file_name string individual_file_name
+	endif
+	if name_recycling_number != 0
+		set incomplete_file_name string ""
+		for n2 = 0 < name_recycling_number
+			getvarchr string_char previous_file_name n2 byte
+			string string_char = string_char
+			string incomplete_file_name + string_char
+		next n2
+		string incomplete_file_name + individual_file_name
+		set file_name string incomplete_file_name
+		set previous_file_name string incomplete_file_name
+	endif
+	if extension_number <= 0x20
+		getarray file_extension 1 extension_number
+		string file_name - 1
+		string file_name + "."
+		string file_name + file_extension
+	endif
+	
+	log file_name file_offset file_size
+next
+
 		else
 			xmath ENTRIES "(ENTRIES3 - ENTRIES2) + 1"
 		endif
