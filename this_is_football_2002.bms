@@ -130,7 +130,7 @@ for
 		set file_name string incomplete_file_name
 		set previous_file_name string incomplete_file_name
 	endif
-	if extension_number <= 0x20
+	if extension_number <= 0x1f
 		getarray file_extension 1 extension_number
 		string file_name - 1
 		string file_name + "."
