@@ -86,11 +86,9 @@ for
 	get name_size byte
 	get file_id short
 	get file_size long
-	
 	if pak_archive_sign == "SceeWhPC"
 		get file_name_hash long
 	endif
-	
 	if file_offset == 0
 	if name_recycling_number == 0
 	if name_size == 0
@@ -102,7 +100,6 @@ for
 	endif
 	endif
 	endif
-	
 	math file_offset << 11
 	set individual_file_name string ""
 	xmath last_name_byte "name_size - 1"
@@ -136,6 +133,5 @@ for
 		string file_name + "."
 		string file_name + file_extension
 	endif
-	
 	log file_name file_offset file_size
 next
