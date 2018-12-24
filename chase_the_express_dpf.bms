@@ -1,0 +1,9 @@
+# Chase the Express/Covert Ops: Nuclear Dawn (PS1) - *.DPF
+
+idstring "PAK\x00"
+get dpf_files long
+for i = 0 < dpf_files
+	get file_offset long
+	get file_size long
+	log "" file_offset file_size
+next i
