@@ -4,7 +4,7 @@ open FDDE "ark" 0
 
 comtype gzip
 
-get ark_01 long
+get ark_version long
 get ark_files long
 for i = 0 < ark_files
 	get ark_02 long
@@ -29,31 +29,29 @@ for k = 0 < ark_entries
 next k
 
 for x = 0 < ark_files
-	set ark_file_name string ""
-	getarray ark_file_offset 1 x
-	getarray ark_string_id_01 2 x
-	getarray ark_string_id_02 3 x
-	getarray ark_file_size 4 x
-	getarray ark_decompressed_gzip_size 5 x
-	
+	set file_name string ""
+	getarray file_offset 1 x
+	getarray string_id_01 2 x
+	getarray string_id_02 3 x
+	getarray file_size_if_normal_file 4 x
+	getarray file_size_if_gzip_file 5 x
 	for y = 0 < 2
 		if y = 0
-			getarray ark_string_offset 6 ark_string_id_02
+			getarray string_offset 6 string_id_02
 		elif y = 1
-			getarray ark_string_offset 6 ark_string_id_01
+			getarray string_offset 6 string_id_01
 		endif
-		math ark_string_offset + ark_pos_01
-		goto ark_string_offset
-		get ark_string string
-		string ark_file_name + /
-		string ark_file_name + ark_string
+		math string_offset + ark_pos_01
+		goto string_offset
+		get name_string string
+		string file_name + /
+		string file_name + name_string
 	next y
-	
-	putarray 8 x ark_file_name
-	if ark_decompressed_gzip_size != 0
-		string ark_file_name > ".gz"
-		clog ark_file_name ark_file_offset ark_file_size ark_decompressed_gzip_size
+	if file_size_if_gzip_file != 0
+		set file_name_without_the_gz string file_name
+		string file_name_without_the_gz > ".gz"
+		clog file_name_without_the_gz file_offset file_size_if_normal_file file_size_if_gzip_file
 	else
-		log ark_file_name ark_file_offset ark_file_size
+		log file_name file_offset file_size_if_normal_file
 	endif
 next x
