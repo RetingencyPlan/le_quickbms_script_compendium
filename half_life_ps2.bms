@@ -4,7 +4,7 @@ open FDDE "pak"
 
 comtype zlib
 get pak_identifier long
-if pak_identifier = 0x4b434150
+if pak_identifier = 0x4b434150 # "PACK"
 	get pak_file_info_offset long
 	get pak_file_info_header_size long
 	goto pak_file_info_offset
