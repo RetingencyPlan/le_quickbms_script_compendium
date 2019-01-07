@@ -1,0 +1,31 @@
+# Half-Life (PS2) - *.PAK
+
+open FDDE "pak"
+
+comtype zlib
+get pak_identifier long
+if pak_identifier = 0x4b434150
+	get pak_file_info_offset long
+	get pak_file_info_header_size long
+	goto pak_file_info_offset
+	xmath pak_files "pak_file_info_header_size >> 6"
+	for i = 0 < pak_files
+		getdstring file_name 0x38
+		get file_offset long
+		get file_size long
+		log file_name file_offset file_size
+	next i
+else
+	get zlib_sign short
+	if zlib_sign == 0xda78
+		math original_size = pak_identifier
+		get pak_basename filename
+		get pak_basesize asize
+		math pak_basesize - 4
+		string pak_finalname p "[DECOMPRESSED]%s" pak_basename
+		clog pak_finalname 4 pak_basesize original_size
+		print " this script can now be re-used on the decompressed PAK file. "
+	else
+		print " what am i looking for exactly? "
+	endif
+endif
