@@ -1,0 +1,43 @@
+# Smash Court Pro Tournament (PS2, Namco System 246) - DATA.[TBL/BIN]
+
+open FDDE "TBL" 0
+open FDDE "BIN" 1
+
+get tbl_files long 0
+get bin_files long 1
+
+if tbl_files = bin_files
+	math files = tbl_files
+endif
+
+for i = 0 < files
+	get file_info_location long 0
+	savepos tbl_pos_01 0
+	goto file_info_location 0
+	get file_size long 0
+	get file_02 long 0
+	math sv = 0xff
+	set file_name string ""
+	for s = 0
+		get string_char byte 0
+		if string_char == 0
+			break
+		else
+			xmath st "string_char ^ sv"
+			string st = st
+			string file_name + st
+			if s == 9
+				math sv + 26
+			elif s == 19
+				math sv + 26
+			elif s == 28
+				math sv + 26
+			else
+				math sv - 3
+			endif
+		endif
+	next s
+	goto tbl_pos_01 0
+	get file_offset long 1
+	log file_name file_offset file_size 1
+next i
