@@ -1,4 +1,4 @@
-# Smash Court Pro Tournament (PS2, Namco System 246) - DATA.[TBL/BIN]
+# Smash Court Pro Tournament/Smash Court Tennis Pro Tournament (PS2, Namco System 246) - DATA.[TBL/BIN]
 
 open FDDE "TBL" 0
 open FDDE "BIN" 1
