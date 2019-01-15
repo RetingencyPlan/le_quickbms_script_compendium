@@ -1,3 +1,5 @@
+this is a list of stuff i have yet to release as scripts due to said scripts needing something else to be barely passable
+
 # THE BIG NEWS
 
 - tri-ace - PS1-PS2 era
