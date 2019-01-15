@@ -13,8 +13,7 @@ if EXT == "HED"
         get file_size long
         get hed_03 long
         get hed_04 long
-
-		log file_name file_offset file_size 1
+	log file_name file_offset file_size 1
     next i
 elif EXT == "HD2"
 	open FDDE "DAT" 1
@@ -30,12 +29,10 @@ elif EXT == "HD2"
 		if file_offset == 0 && file_size == 0
 			break
 		endif
-
 		savepos temp_01
 		goto name_offset
 		get file_name string
 		goto temp_01
-
 		log file_name file_offset file_size 1
 	next
 elif EXT == "HD3"
@@ -48,12 +45,10 @@ elif EXT == "HD3"
 		if file_size == 0 && hd3_03 == 0
 			break
 		endif
-
 		savepos temp_01
 		goto name_offset
 		get file_name string
 		goto temp_01
-
 		log file_name file_offset file_size 1
 		math file_offset + file_size
 		math file_offset x 0x800
@@ -67,12 +62,10 @@ elif EXT == "HD4"
 		if file_size == 0 && file_offset == 0
 			break
 		endif
-		
 		savepos temp_01
 		goto name_offset
 		get file_name string
 		goto temp_01
-		
 		math file_offset << 11
 		log file_name file_offset file_size 1
 	next
@@ -92,13 +85,11 @@ elif EXT == "HD6"
 	get hd6_11 long
 	get hd6_size long
 	xmath last_duplicate_file "files - 2"
-	
 	goto keyword_info_offset
 	for a = 0 < total_keywords
 		get keyword string
 		putarray 0 a keyword
 	next a
-	
 	goto file_info_offset
 	for i = 0 < files
 		getdstring hd6_file_info 8
@@ -123,7 +114,6 @@ elif EXT == "HD6"
 		goto temp_01
 		xmath file_offset "((byte_05 << 14) | (byte_04 << 6) | (byte_03 >> 2)) << 11"
 		xmath file_size "((byte_08 << 16) | (byte_07 << 8) | byte_06) << 4"
-
 		if file_size != 0
 			log file_name file_offset file_size 1
 		endif
