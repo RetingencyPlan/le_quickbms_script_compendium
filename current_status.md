@@ -106,7 +106,7 @@ this is a list of stuff i have yet to release as scripts due to said scripts nee
   - [5] signed archive number is 0x34829314 for SO2.BIN, 0x19563824 for VALKYRIE.BIN
   - [6] 0x1400 for sotet.bin, 0x1200 for radiata.bin, 0xc00 for vp2.bin - all of them that shall be *right-shifted* by 3 instead of having its current looping number be *added* by 8 as the main exe for either of these games said archives were stored on would much rather say
   - [7] as we're talking about three 32-bit variables here, the position for the first one is always 0, the position for the second one is 0x5000 for sotet.bin, 0x4800 for radiata.bin, 0x3000 for vp2.bin, and the position for the third one is 0xa000 for sotet.bin, 0x9000 for radiata.bin, 0x6000 for vp2.bin
-  - [8] crucial number is 0x13578642 for *both* sotet.bin and radiata.bin, 0x49287491 for vp2.bin
-  - [9] signed archive number is 0x00000400 for sotet.bin, 0x34829314 for radiata.bin(same as SO2.BIN), 0x18471208 for vp2.bin
+  - [8] crucial number is 0x13578642 for *both* sotet.bin and radiata.bin(same number as for SO2.BIN, see [3] above), 0x49287491 for vp2.bin
+  - [9] signed archive number is 0x00000400 for sotet.bin, 0x34829314 for radiata.bin(same number as for SO2.BIN, see [5] above), 0x18471208 for vp2.bin
 
 Others to follow...
