@@ -8,6 +8,23 @@ this is a list of stuff i have yet to release as scripts due to said scripts nee
       - the encryption/decryption process of these archives involve a for-next looping cycle that stops with a certain number[1] and within that cycle you need to have at least two variables so you can get some bytes at different positions[2](32-bit variable in one position and 8-bit variable in another). this is outlined as two steps:
         - (1/2) for the first 32-bit variable you need to have a **seed-numbering variable** *left-shift* some **crucial number**[3] by 1 then *xor* that 32-byte variable(using itself as a source) with that exact crucial number, then *xor* said crucial number(using itself as a source) with that seed-numbering variable at which point the process will then move on to that 8-bit variable that gets a byte from a certain position. 
         - (2/2) from there on, that seed-numbering variable *complements*(NOR in mathematical terms, kinda like "*xor* 0xffffffff") the crucial number, the crucial number is *xor*-ed with that 8-bit variable that (like the 32-bit variable "explained" above) just gets the data within a certain bit. from there on another variable just takes that crucial number and focuses only the last byte in said number for future use, and finally the crucial number uses a seed-numbering variable alongside its **clone number**[4] and *xors* them together.
+        - is that tl;dr not enough for you!? then witness this monster in action!
+          ```
+          for i = 0 < index_count
+            goto pos_01
+            get byte_01 long
+            math pos_01 + 4
+            xmath seed_number "crucial_number << 1"
+            math byte_01 ^ crucial_number
+            math crucial_number ^ seed_number
+            goto pos_02
+            get byte_02 byte
+            math pos_02 + 1
+            math seed_number ~ crucial_number
+            math crucial_number ^ byte_02
+            xmath crucial_number "seed_number ^ clone_number"
+          next i
+          ```
       - the actual header(post-decryption process) goes like this:
         - (1) the first 4 bytes of the archive is a literal **signed archive number**[5], surely not something you want to locate the CD-ROM sector in which the file is located and calculate the total number of sectors that consist of an entire size for that file with so this number is skipped entirely.
         - (2) from there on the header consists of two parts :
@@ -26,8 +43,54 @@ this is a list of stuff i have yet to release as scripts due to said scripts nee
           - (2/4) second part - *complement*(see the explanation above that goes after complements) that seed-numbering variable with a crucial number then have the **second seed-numbering variable** pick up the first one with a clone number[4] then have the **first seed-numbering variable** *left-shift* the **second seed-numbering variable** by 2, *xor* the **second seed-numbering variable**(using itself as a source) with said clone number, then *xor* the second 32-bit variable that grabs the header data from a certaion position(using itself as a source) with that same crucial number.
           - (3/4) third part - *xor* the third 32-bit variable that grabs the header data from a certaion position(using itself as a source) with that same crucial number, and and just *xor* the **second seed-numbering variable**(using itself as a source) with the **first seed-numbering variable**
           - (4/4) now have all three parts be done ***twice*** and exchange these same vaiables between them and this, ladies and gentlemen, is how you decrypt the header!
+          - is all that tl;dr *still* not enough for you!? well then, see this monster in action!
+            ```
+            xmath full_count "index_count >> 3"
+            for i = 0 < full_count
+              for j = 0 < 4
+                goto pos_01
+                get byte_01 long
+                math pos_01 + 4
+                xmath first_seed_number "crucial_number << 1"
+                math byte_01 ^ crucial_number
+                math crucial_number ^ first_seed_number
+                goto pos_02
+                get byte_02 long
+                math pos_02 + 4
+                math first_seed_number ~ crucial_number
+                xmath second_seed_number "first_seed_number ^ clone_number"
+                xmath first_seed_number "second_seed_number << 2"
+                math first_seed_number ^ clone_number
+                math byte_02 ^ crucial_number
+                goto pos_03
+                get byte_03 long
+                math pos_03 + 4
+                math byte_03 ^ second_seed_number
+                math second_seed_number ^ first_seed_number
+                goto pos_01
+                get byte_04 long
+                math pos_01 + 4
+                xmath first_seed_number "second_seed_number << 1"
+                math byte_04 ^ second_seed_number
+                math second_seed_number ^ first_seed_number
+                goto pos_02
+                get byte_05 long
+                math pos_02 + 4
+                math first_seed_number ~ second_seed_number
+                xmath crucial_number "first_seed_number ^ clone_number"
+                xmath first_seed_number "crucial_number << 2"
+                math first_seed_number ^ clone_number
+                math byte_05 ^ second_seed_number
+                goto pos_03
+                get byte_06 long
+                math pos_03 + 4
+                math byte_06 ^ crucial_number
+                math crucial_number ^ first_seed_number
+              next j
+            next i
+            ```
       - the actual header(post-decryption process) goes like this:
-        - (1) the first 4 bytes of the header consist of a **signed archive number**[9]that varies from archive to archive, same as the PS1 games outlined above.
+        - (1) the first 4 bytes of the header consist of a **signed archive number**[9] that varies from archive to archive, same as the PS1 games outlined above. again, this part will be ignored as the first "file" is pretty much the (encrypted) header itself. yes, even the archive header *itself* is referenced in two of all three parts that's been outlined below.
         - (2) from there on the header consists of three parts:
           - the first part is a listing of all located file offsets.
             - the format in which a file offset value is stored on is based on a DVD sector address.
