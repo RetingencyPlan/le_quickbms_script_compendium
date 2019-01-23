@@ -1,0 +1,214 @@
+# Ubisoft Montreal (PS2) - *.INT video files
+# This PS2-exclusive format was first used on Batman: Rise of Sin Tzu.
+
+open FDDE "int" 0
+
+get INT_ASIZE1 asize
+get INT_BNAME basename
+get INT_FNAME fullname
+get INT_SIGN long
+get INT01 float
+get INT02 long
+get INT03 long
+get INT_LAYERS long
+get VID1 byte
+get VID2 byte
+get AUD1 byte
+get AUD2 byte
+get INT06 long
+get INT07 long
+get INT08 long
+get INT09 long
+
+# this is where the script calulates the offset of the entire data.
+xmath INT_OFFSET1 "(INT03 * 4) + 0x2c"
+if INT_LAYERS == 0
+	math INT_OFFSET1 + INT06
+elif INT_LAYERS == 1
+	math INT_OFFSET1 + INT06
+	math INT_OFFSET1 + INT08
+elif INT_LAYERS == 2
+	math INT_OFFSET1 + INT06
+	math INT08_03 = INT08
+	math INT08_03 * INT_LAYERS
+	math INT_OFFSET1 + INT08_03
+	math INT_OFFSET1 + INT09
+elif INT_LAYERS == 5
+	math INT_OFFSET1 + INT06
+	math INT08_03 = INT08
+	math INT08_03 * INT_LAYERS
+	math INT_OFFSET1 + INT08_03
+endif
+
+# apparently, doing "math INT_OFFSET1 x= 0x20/0x30/0x40" yielded bad results on some files
+# so instead this script will find out the actual offset through a 16-time loop that uses this
+# 32-bit variable to see if the value reached out of that variable is zero.
+# if it's zero, it'll calculate INT_OFFSET1 by 4 every time it does this, otherwise it stops right there.
+savepos TMP2
+goto INT_OFFSET1
+for pd = 0 < 16
+	get PADDING1 long
+	if PADDING1 == 0
+		math INT_OFFSET1 + 4
+	endif
+next pd
+goto TMP2
+
+for i1 = 0 <= INT03
+	get int_chunk_offset long
+	putarray 1 i1 int_chunk_offset
+next i1
+
+# this script will attempt to locate the table data in which contains all those video chunks,
+# although there are *.INT files that were never seen in this structure with just the audio so this procedure
+# is done by default.
+xmath MPEG2_OFFSET "(INT03 * 4) + 0x2c"
+goto MPEG2_OFFSET
+# after that, the script will then grab relevant information regarding these chunks.
+getdstring MPEG2_HEADER 0x24
+getdstring video_intra_quantizer_matrix 0x40
+get video_height long
+get video_width long
+get MPEG2_03 float
+get MPEG2_04 long
+get MPEG2_05 long
+get full_video_size long
+get MPEG2_07 long
+get MPEG2_08 long
+savepos INT_FINAL_OFFSET1
+for m2_cc = 0 < MPEG2_05
+	get video_chunk_offset long
+	putarray 2 m2_cc video_chunk_offset
+next m2_cc
+putarray 2 m2_cc full_video_size
+math m2_cc + 1
+
+# this script will thn reuse the same method as described above, but for audio chunks as well.
+xmath AUDIO_OFFSET "MPEG2_OFFSET + INT06"
+goto AUDIO_OFFSET
+# if the INT_LAYERS variable value is at minimum 1, then that's where the audio chunks reside.
+# after that, the script will then grab relevant information regarding these chunks.
+if INT_LAYERS == 1
+	math audio_array = 4
+	if AUD1 == 1
+		if AUD2 == 0
+			callfunction AUD1_INFO 1
+			math audio_array + 1
+		endif
+	endif
+elif INT_LAYERS == 2
+	math audio_array = 4
+	if AUD1 == 1
+		if AUD2 == 1
+			log MEMORY_FILE2 AUDIO_OFFSET INT09
+			get SUB_SIZE asize MEMORY_FILE2
+			string SUB_NAME p "%s.sub" INT_BNAME
+			log SUB_NAME 0 SUB_SIZE MEMORY_FILE2
+			
+			xmath AUDIO_OFFSET2 "AUDIO_OFFSET + INT09"
+			goto AUDIO_OFFSET2
+			for int_l2 = 0 < INT_LAYERS
+				callfunction AUD1_INFO 1
+				math audio_array + 1
+			next int_l2
+		endif
+	endif
+elif INT_LAYERS == 5
+	math audio_array = 4
+	for int_l2 = 0 < INT_LAYERS
+		callfunction AUD1_INFO 1
+		math audio_array + 1
+	next int_l2
+endif
+
+# after all of this whole "reading" process, all of these "number of chunks" as gathered by the script
+# will then be formed into one single variable consisting of not only a quantity consisting of video chunks,
+# but also the number of audio chunks if they exist.
+xmath int_total_layers "INT03 + 1"
+
+math current_video_index = 0
+math current_audio_index = 0
+math last_int_chunk_index = i1
+math last_video_index = m2_cc
+math last_audio_track_index = audio_array
+for ti = 0 < int_total_layers
+	log MEMORY_FILE 0 0
+	getarray int_chunk_offset 1 ti
+	xmath next_int_chunk_index "ti + 1"
+	if next_int_chunk_index != last_int_chunk_index
+		getarray next_chunk_offset 1 next_int_chunk_index
+		xmath int_chunk_size "next_chunk_offset - int_chunk_offset"
+	else
+		math int_chunk_size = 0
+	endif
+	math int_overall_chunk_offset = int_chunk_offset
+	math int_overall_chunk_offset + INT_OFFSET1
+	log MEMORY_FILE int_overall_chunk_offset int_chunk_size
+	math chunk_offset_on_memory = 0
+	append
+	for v1 = 0 < 5
+		string video_chunk_filename p "%s.m2v" INT_BNAME
+		if current_video_index != last_video_index
+			getarray video_chunk_offset 2 current_video_index
+			xmath next_video_index "current_video_index + 1"
+			if next_video_index != last_video_index
+				getarray next_chunk_offset 2 next_video_index
+				xmath video_chunk_size "next_chunk_offset - video_chunk_offset"
+			else
+				math video_chunk_size = 0
+			endif
+			log video_chunk_filename chunk_offset_on_memory video_chunk_size MEMORY_FILE
+			math chunk_offset_on_memory + video_chunk_size
+			math current_video_index + 1
+		else
+			break
+		endif
+	next v1
+	append
+	if INT_LAYERS != 0
+		math chunk_offset_on_memory = chunk_offset_on_memory
+		append
+		for a1 = 4 < last_audio_track_index
+			xmath a2 "(a1 - 4) + 1"
+			string audio_chunk_filename p "[%02d]%s.ubs" a2 INT_BNAME
+			getarray last_audio_index 3 a1
+			xmath penultimate_audio_track "last_audio_track_index - 1"
+			if current_audio_index != last_audio_index
+				getarray audio_chunk_offset a1 current_audio_index
+				xmath next_audio_index "current_audio_index + 1"
+				if next_audio_index != last_audio_index
+					getarray next_chunk_offset a1 next_audio_index
+					xmath audio_chunk_size "next_chunk_offset - audio_chunk_offset"
+				else
+					math audio_chunk_size = 0
+				endif
+				log audio_chunk_filename chunk_offset_on_memory audio_chunk_size MEMORY_FILE
+				math chunk_offset_on_memory + audio_chunk_size
+				if a1 = penultimate_audio_track
+					math current_audio_index + 1
+				endif
+			else
+				break
+			endif
+		next a1
+		append
+	endif
+next ti
+
+# in this kind of structure, there's no way to accurately tell which codec format is which
+# but for all I know the codecs used for these *.INT video files look like this:
+# 1. Ubisoft 4-bit IMA ADPCM
+# 2. 16-bit PCM(little-endian)
+startfunction AUD1_INFO
+	get AUD1_01 long
+	get AUD1_02 long
+	get AUD1_03 long
+	get AUD1_04 long
+	get AUD1_05 long
+	xmath AUD1_06 "(INT08 / 4) - 5"
+	putarray 3 audio_array AUD1_06
+	for a1_cc = 0 < AUD1_06
+		get audio_chunk_offset long
+		putarray audio_array a1_cc audio_chunk_offset
+	next a1_cc
+endfunction
