@@ -1,0 +1,17 @@
+# Ubisoft Montreal - .big+.fat
+# first used in Prince of Persia: The Sands of Time(PS2, GC, XBOX, PC)
+
+open FDDE "fat"
+open FDDE "big" 1
+
+get fat_size asize
+for current_position = 0 < fat_size
+	get DUMMY1 long
+	get file_offset long
+	get file_size long
+	get DUMMY4 long
+	get name_string_size long
+	getdstring file_name name_string_size
+	log file_name file_offset file_size 1
+	savepos current_position
+next
