@@ -34,7 +34,6 @@ for entry = entry != entries
 	set file_name_per_entry string ""
 	set entry_name string ""
 	xmath last_entry "entries - 1"
-	putarray 0 0 last_entry
 	goto entry_info_offset
 	getdstring entry_info 0x20
 	math entry_info_offset += 0x20
@@ -154,7 +153,7 @@ for entry = entry != entries
 		endif
 	elif zoe_dat_ver = 2
 		if entry_flags == 0
-			#log file_name_per_entry file_offset_per_entry file_size_per_entry
+			log file_name_per_entry file_offset_per_entry file_size_per_entry
 		endif
 	endif
 	if zoe_dat_ver = 1
