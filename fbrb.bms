@@ -1,0 +1,53 @@
+# Frostbite Engine(2008-2010) - *.fbrb
+
+endian big
+
+get fbrb_size asize
+get fbrb_sign long
+if fbrb_sign != 0x46625242
+	print " this is not an actual .fbrb file "
+	cleanexit
+endif
+get fbrb_header_size long
+xmath base_offset "fbrb_header_size + 8"
+xmath base_size "fbrb_size - base_offset"
+get if_gzip short
+if if_gzip = 0x1f8b
+	comtype gzip
+	clog MEMORY_FILE 8 fbrb_header_size fbrb_header_size
+	math file_number = -1
+else
+	math file_number = 0
+endif
+goto base_offset
+get if_gzip_for_real short
+if if_gzip_for_real = 0x1f8b
+	comtype gzip
+	clog TEMPORARY_FILE base_offset base_size base_size
+else
+	log TEMPORARY_FILE base_offset base_size
+endif
+get fbrb_version long file_number
+get fbrb_name_index_size long file_number
+xmath fbrb_file_info_offset "fbrb_name_index_size + 8"
+goto fbrb_file_info_offset file_number
+get fbrb_total_entries long file_number
+open "." TEMPORARY_FILE 1
+for i = 0 < fbrb_total_entries
+	get name_string_offset long file_number
+	if file_number = 0
+		math name_string_offset + 16
+	elif file_number = -1
+		math name_string_offset + 8
+	endif
+	savepos fbrb_tmp_01 file_number
+	goto name_string_offset file_number
+	get file_name_string string file_number
+	goto fbrb_tmp_01 file_number
+	get fixed_chunk_size long file_number
+	get file_offset long file_number
+	get file_size_with_res_header long file_number
+	get file_size_without_res_header long file_number
+	get file_type long file_number
+	log file_name_string file_offset file_size_with_res_header 1
+next i
