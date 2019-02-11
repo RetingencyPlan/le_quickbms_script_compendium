@@ -10,11 +10,11 @@ get pic_color_map_entries short
 get pic_height short
 get pic_width short
 get pic_04 short
-xmath raw_image_offset "(pic_color_map_entries * 4)"
+xmath raw_image_offset "(pic_color_map_entries << 2)"
 xmath raw_image_size "(pic_size - pic_offset) - raw_image_offset"
 math pic_offset + raw_image_offset
 if pic_color_map_entries == 0
-	xmath pixel_entries "raw_image_size / 4"
+	xmath pixel_entries "raw_image_size >> 2"
 else
 	math pixel_entries = raw_image_size
 endif
