@@ -15,7 +15,7 @@ for i = 0 < ahf_files
 	get file_size long
 	get ahff_03 long
 	get file_name string
-	log "" file_offset file_size
+	log file_name file_offset file_size
 	padding 4
 	goto ahff_temp_position
 next i
