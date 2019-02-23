@@ -1,0 +1,266 @@
+goto 0x8000
+get type byte
+getdstring id 5
+get version byte
+get unused1 byte
+getdstring system_id 32
+getdstring volume_id 32
+getdstring unused2 8
+get volume_space_size_01 long
+get volume_space_size_02 long
+getdstring unused3 32
+get volume_set_size_01 short
+get volume_set_size_02 short
+get volume_sequence_number_01 short
+get volume_sequence_number_02 short
+get logical_block_size_01 short
+get logical_block_size_02 short
+get path_table_size_01 long
+get path_table_size_02 long
+get type_l_path_table long
+get opt_type_l_path_table long
+get type_m_path_table long
+get opt_type_m_path_table long
+getdstring root_directory_record 34
+getdstring volume_set_id 128
+getdstring publisher_id 128
+getdstring preparer_id 128
+getdstring application_id 128
+getdstring copyright_file_id 37
+getdstring abstract_file_id 37
+getdstring bibliographic_file_id 37
+getdstring creation_date 17
+getdstring modification_date 17
+getdstring expiration_date 17
+getdstring effective_date 17
+get file_structure_version byte
+get unused4 byte
+getdstring application_data 512
+getdstring unused5 653
+
+if volume_id == "STAROCEANTET                    "
+	set bin_filename string "sotet.bin"
+	set path_name string "STAROCEANTET"
+	math bin_offset = 0x400
+	math tri_ace = 1
+endif
+
+if volume_id == "RADIATA                         "
+	set bin_filename string "radiata.bin"
+	set path_name string "RADIATA"
+	math bin_offset = 0x78d83
+	math tri_ace = 1
+endif
+
+if volume_id == "VALKYRIEPROFILE2                "
+	set bin_filename string "vp2.bin"
+	set path_name string "VALKYRIEPROFILE2"
+	math bin_offset = 0x400
+	math tri_ace = 1
+endif
+
+if tri_ace = 1
+	math bin_offset << 11
+	goto bin_offset
+	if bin_filename == "sotet.bin"
+		math full_header_size = 0xf000
+		math index_count = 0x1400
+		math pos_01 = 0
+		math memory_pos_01 = pos_01
+		math pos_02 = 0x5000
+		math memory_pos_02 = pos_02
+		math pos_03 = 0xa000
+		math memory_pos_03 = pos_03
+		math num_01 = 0x13578642
+		math num_02 = num_01
+	elif bin_filename == "radiata.bin"
+		math full_header_size = 0xd800
+		math index_count = 0x1200
+		math pos_01 = 0
+		math memory_pos_01 = pos_01
+		math pos_02 = 0x4800
+		math memory_pos_02 = pos_02
+		math pos_03 = 0x9000
+		math memory_pos_03 = pos_03
+		math num_01 = 0x13578642
+		math num_02 = num_01
+	elif bin_filename == "vp2.bin"
+		math full_header_size = 0x9000
+		math index_count = 0xc00
+		math pos_01 = 0
+		math memory_pos_01 = pos_01
+		math pos_02 = 0x3000
+		math memory_pos_02 = pos_02
+		math pos_03 = 0x6000
+		math memory_pos_03 = pos_03
+		math num_01 = 0x49287491
+		math num_02 = num_01
+	endif
+	math pos_01 + bin_offset
+	math pos_02 + bin_offset
+	math pos_03 + bin_offset
+
+	xmath full_count "index_count >> 3"
+	log MEMORY_FILE 0 full_header_size
+	for i = 0 < full_count
+		for j = 0 < 4
+			goto pos_01
+			get b01 long
+			math pos_01 + 4
+			xmath pk01 "num_01 << 1"
+			math b01 ^ num_01
+			goto memory_pos_01 MEMORY_FILE
+			put b01 long MEMORY_FILE
+			math memory_pos_01 + 4
+			math num_01 ^ pk01
+			goto pos_02
+			get b02 long
+			math pos_02 + 4
+			math pk01 ~ num_01
+			xmath pk02 "pk01 ^ num_02"
+			xmath pk01 "pk02 << 2"
+			math pk01 ^ num_02
+			math b02 ^ num_01
+			goto memory_pos_02 MEMORY_FILE
+			put b02 long MEMORY_FILE
+			math memory_pos_02 + 4
+			goto pos_03
+			get b03 long
+			math pos_03 + 4
+			math b03 ^ pk02
+			goto memory_pos_03 MEMORY_FILE
+			put b03 long MEMORY_FILE
+			math memory_pos_03 + 4
+			math pk02 ^ pk01
+			goto pos_01
+			get b04 long
+			math pos_01 + 4
+			xmath pk01 "pk02 << 1"
+			math b04 ^ pk02
+			goto memory_pos_01 MEMORY_FILE
+			put b04 long MEMORY_FILE
+			math memory_pos_01 + 4
+			math pk02 ^ pk01
+			goto pos_02
+			get b05 long
+			math pos_02 + 4
+			math pk01 ~ pk02
+			xmath num_01 "pk01 ^ num_02"
+			xmath pk01 "num_01 << 2"
+			math pk01 ^ num_02
+			math b05 ^ pk02
+			goto memory_pos_02 MEMORY_FILE
+			put b05 long MEMORY_FILE
+			math memory_pos_02 + 4
+			goto pos_03
+			get b06 long
+			math pos_03 + 4
+			math b06 ^ num_01
+			goto memory_pos_03 MEMORY_FILE
+			put b06 long MEMORY_FILE
+			math memory_pos_03 + 4
+			math num_01 ^ pk01
+		next j
+	next i
+
+	if bin_filename == "sotet.bin"
+		math memory_pos_01 = 0
+		math memory_pos_02 = 0x5000
+		math memory_pos_03 = 0xa000
+	elif bin_filename == "radiata.bin"
+		math memory_pos_01 = 0
+		math memory_pos_02 = 0x4800
+		math memory_pos_03 = 0x9000
+	elif bin_filename == "vp2.bin"
+		math memory_pos_01 = 0
+		math memory_pos_02 = 0x3000
+		math memory_pos_03 = 0x6000
+	endif
+
+	math slz_sign = 0x534c5a
+	math sle_sign = 0x534c45
+	for i = 0 < index_count
+		math no_data = 0
+		goto memory_pos_01 MEMORY_FILE
+		get byte_01 long MEMORY_FILE
+		math memory_pos_01 + 4
+		goto memory_pos_02 MEMORY_FILE
+		get byte_02 long MEMORY_FILE
+		math memory_pos_02 + 4
+		goto memory_pos_03 MEMORY_FILE
+		get byte_03 long MEMORY_FILE
+		math memory_pos_03 + 4
+		if byte_01 = 0
+		if byte_02 = 0
+		if byte_03 = 0
+			math no_data = 1
+		endif
+		endif
+		endif
+		if no_data = 0
+			set file_type string ""
+			set file_extension string ""
+			math i2 = i
+			math i2 + 1
+			if i == 0
+				math file_offset = bin_offset
+			else
+				xmath file_offset "byte_01 << 11"
+			endif
+			/*
+			goto file_offset
+			get file_sign long
+			set file_extension string "unknown"
+			xmath slz_sle_match "((file_sign & 0xff) << 16) | (((file_sign >> 8) & 0xff) << 8) | ((file_sign >> 16) & 0xff)"
+			if slz_sle_match = slz_sign
+				set file_extension string "slz"
+			elif slz_sle_match = sle_sign
+				set file_extension string "sle"
+			endif
+			if file_sign == 0
+				get possible_datapack_01 long
+				get possible_datapack_02 long
+				if possible_datapack % 0x10
+					set file_extension string "pack_01"
+					# probably "csi"
+				endif
+			endif
+			if file_sign >= 0x20 && file_sign <= 0x4e000
+				goto 0x14 0 SEEK_CUR
+				get possible_csd long
+				if possible_csd == 0 || possible_csd == 1
+					set file_extension string "csd"
+				endif
+			endif
+			if file_sign == 0x594d44
+				set file_extension string "dmy"
+			endif
+			if file_sign == 0x534c5a
+				set file_extension string "zls"
+			endif
+			if file_sign == 0x4b434150
+				set file_extension string "pack_02"
+			endif
+			if file_sign == 0x57514553
+				set file_extension string "csm"
+			endif
+			if file_sign == 0x67225277
+				set file_extension string "encrypted_pss"
+			endif
+			if file_sign == 0xba010000
+				set file_extension string "pss"
+			endif
+			xmath file_size "byte_02 << 11"
+			xmath runtime_file_offset "byte_03 << 11"
+			if runtime_file_offset = 0
+				set file_type string "miscellanea"
+			else
+				set file_type string "runtime"
+			endif
+			string temp_name p "%s/%s/%04d.%s" path_name file_type i2 file_extension
+			log temp_name file_offset file_size
+			*/
+			log "" file_offset file_size
+		endif
+	next i
+endif
