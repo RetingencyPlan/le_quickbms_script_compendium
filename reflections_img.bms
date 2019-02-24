@@ -1,4 +1,4 @@
-# Ubisoft Reflections- *.img
+# Ubisoft Reflections - *.img/*.L##
 # ---
 # Stuntman (PS2)
 # Driv3r (PS2, Xbox)
@@ -22,7 +22,6 @@ elif img_sign == 0x34474d49
 endif
 xmath img_is_xbox "(((img_archive_info_size + initial_file_info_position) >> 11) + 1) << 11"
 # (todo) this is too rough for my tastes
-putarray 0 0 img_is_xbox
 if img_size = img_is_xbox
 	math external = 1
 	get img_name basename
