@@ -1,11 +1,6 @@
-# MODULE.IPK (MGS2, AZOE/ZOE2, MGS3)
-# inspired by Nisto's efforts at decrypting the file(https://github.com/Nisto/zoe2_ipk_dec),
-# i had to hit up my IDA Pro copy[1] just to load PLD.IRX in it just to see if his code was correct at the very least
-# then i decided to do this
-# ---
-# [1] a "cracked" copy of it, that is. what do you expect me to do mate? shell out for a legit copy of it since it's meant for professional use anyway?
+# module.ipk (MGS2, AZOE/ZOE2, MGS3)
 
-open FDSE "MODULE.IPK"
+open FDSE "module.ipk"
 
 get ipk_size asize
 
