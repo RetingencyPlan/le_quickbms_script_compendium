@@ -11,4 +11,5 @@ for i = 0 < FSE_FILES
 	math OFFSET << 11
 	get SIZE long
 	get FSE03 long
+	log "" OFFSET SIZE 1
 next i
