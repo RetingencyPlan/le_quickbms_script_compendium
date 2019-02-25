@@ -101,13 +101,6 @@ elif img_ver >= 2
 			goto img_temp_position MEMORY_FILE
 			get file_offset long MEMORY_FILE
 			get file_size long MEMORY_FILE
-		elif img_ver = 3
-			get hardcoded_file_name_hash long MEMORY_FILE
-			get file_02 long MEMORY_FILE
-			get file_size long MEMORY_FILE
-			string temp_name p "%08x" hardcoded_file_name_hash
-		endif
-		if img_ver = 2
 			if img_size <= 0xffefffff
 				math file_offset << 11
 				log file_name file_offset file_size
@@ -155,6 +148,10 @@ elif img_ver >= 2
 				endif
 			endif
 		elif img_ver = 3
+			get hardcoded_file_name_hash long MEMORY_FILE
+			get file_02 long MEMORY_FILE
+			get file_size long MEMORY_FILE
+			string temp_name p "%08x" hardcoded_file_name_hash
 			if external = 0
 				if img_size <= 0xffefffff
 					xmath file_offset "file_02 << 11"
