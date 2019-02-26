@@ -12,15 +12,15 @@ get img_files long
 get hardcoded_file_info_hash long
 math initial_file_info_position = 0
 math img_ver = 0
-if img_sign == 0x32474d49 # IMG2
+if img_sign == 0x32474d49
 	xmath img_archive_info_size "img_files * 0x38"
 	math initial_file_info_position = 0x0c
 	math img_ver = 1
-elif img_sign == 0x33474d49 # IMG3
+elif img_sign == 0x33474d49
 	get img_archive_info_size long
 	math initial_file_info_position = 0x10
 	math img_ver = 2
-elif img_sign == 0x34474d49 # IMG4
+elif img_sign == 0x34474d49
 	get img_archive_info_size long
 	math initial_file_info_position = 0x10
 	math img_ver = 3
@@ -73,6 +73,8 @@ if img_ver = 1
 		if img_size <= 0xffefffff
 			math file_offset << 11
 			log file_name file_offset file_size
+		elif img_size == 0xfff00000
+			callfunction special_file_handle_within_split_img_files 1
 		endif
 	next i
 elif img_ver >= 2
@@ -105,47 +107,7 @@ elif img_ver >= 2
 				math file_offset << 11
 				log file_name file_offset file_size
 			elif img_size == 0xfff00000
-				xmath img_reduced_size "0xfff00000 >> 11"
-				xmath img_number "file_offset / img_reduced_size"
-				if img_number == 0
-					string img_layer_name p "%s.img" img_name
-				else
-					math img_number - 1
-					string img_layer_name p "%s.im%d" img_name img_number
-				endif
-				open FDSE img_layer_name 1
-				xmath file_offset_per_layer "(file_offset % img_reduced_size) << 11"
-				xmath test_01 "(file_offset_per_layer >> 11) + (file_size >> 11)"
-				xmath total_number_of_chunks_per_file_within_split_archive "((file_offset_per_layer >> 11) + (file_size >> 11)) / img_reduced_size"
-				if total_number_of_chunks_per_file_within_split_archive == 0
-					log file_name file_offset_per_layer file_size 1
-				else
-					math last_j = total_number_of_chunks_per_file_within_split_archive
-					math current_img_layer = img_number
-					append
-					for j = 0 <= total_number_of_chunks_per_file_within_split_archive
-						math chunked_file_offset_within_split_archive = 0
-						math chunked_file_size_within_split_archive = 0
-						if current_img_layer == 0
-							string temp_load p "%s.img" img_name
-						else
-							math current_img_layer - 1
-							string temp_load p "%s.im%d" img_name current_img_layer
-						endif
-						open FDSE temp_load 2
-						if j = 0
-							math chunked_file_offset_within_split_archive = file_offset_per_layer
-							xmath chunked_file_size_within_split_archive "(((test_01 - ((total_number_of_chunks_per_file_within_split_archive - 1) * img_reduced_size)) - (test_01 - ((total_number_of_chunks_per_file_within_split_archive) * img_reduced_size))) - (file_offset_per_layer >> 11)) << 11"
-						elif j = last_j
-							xmath chunked_file_size_within_split_archive "((test_01 - ((total_number_of_chunks_per_file_within_split_archive) * img_reduced_size)) << 11) + (file_size % (1 << 11))"
-						else
-							math chunked_file_size_within_split_archive = img_size
-						endif
-						log file_name chunked_file_offset_within_split_archive chunked_file_size_within_split_archive 2
-						math current_img_layer + 1
-					next j
-					append
-				endif
+				callfunction special_file_handle_within_split_img_files 1
 			endif
 		elif img_ver = 3
 			get hardcoded_file_name_hash long MEMORY_FILE
@@ -156,6 +118,8 @@ elif img_ver >= 2
 				if img_size <= 0xffefffff
 					xmath file_offset "file_02 << 11"
 					log temp_name file_offset file_size
+				elif img_size == 0xfff00000
+					callfunction special_file_handle_within_split_img_files 1
 				endif
 			elif external = 1
 				xmath file_offset "((file_02 >> 8) & 0xffffff) << 11"
@@ -168,3 +132,59 @@ elif img_ver >= 2
 		endif
 	next i
 endif
+
+startfunction special_file_handle_within_split_img_files
+	xmath img_reduced_size "0xfff00000 >> 11"
+	if img_ver = 3
+		math file_offset == file_02
+	endif
+	xmath img_number "file_offset / img_reduced_size"
+	if img_number == 0
+		string img_layer_name p "%s.img" img_name
+	else
+		math img_number - 1
+		string img_layer_name p "%s.im%d" img_name img_number
+	endif
+	open FDSE img_layer_name 1
+	xmath file_offset_per_layer "(file_offset % img_reduced_size) << 11"
+	xmath test_01 "(file_offset_per_layer >> 11) + (file_size >> 11)"
+	xmath total_number_of_chunks_per_file_within_split_archive "((file_offset_per_layer >> 11) + (file_size >> 11)) / img_reduced_size"
+	if total_number_of_chunks_per_file_within_split_archive == 0
+		if img_ver <= 2
+			log file_name file_offset_per_layer file_size 1
+		elif img_ver = 3
+			log temp_name file_offset_per_layer file_size 1
+		endif
+	else
+		math last_j = total_number_of_chunks_per_file_within_split_archive
+		math current_img_layer = img_number
+		append
+		for j = 0 <= total_number_of_chunks_per_file_within_split_archive
+			math chunked_file_offset_within_split_archive = 0
+			math chunked_file_size_within_split_archive = 0
+			if current_img_layer == 0
+				string temp_load p "%s.img" img_name
+			else
+				math alternative_img_layer = current_img_layer
+				math alternative_img_layer - 1
+				string temp_load p "%s.im%d" img_name alternative_img_layer
+			endif
+			open FDSE temp_load 2
+			if j = 0
+				math chunked_file_offset_within_split_archive = file_offset_per_layer
+				xmath chunked_file_size_within_split_archive "(((test_01 - ((total_number_of_chunks_per_file_within_split_archive - 1) * img_reduced_size)) - (test_01 - ((total_number_of_chunks_per_file_within_split_archive) * img_reduced_size))) - (file_offset_per_layer >> 11)) << 11"
+			elif j = last_j
+				xmath chunked_file_size_within_split_archive "((test_01 - ((total_number_of_chunks_per_file_within_split_archive) * img_reduced_size)) << 11) + (file_size % (1 << 11))"
+			else
+				math chunked_file_size_within_split_archive = img_size
+			endif
+			if img_ver <= 2
+				log file_name chunked_file_offset_within_split_archive chunked_file_size_within_split_archive 2
+			elif img_ver = 3
+				log temp_name chunked_file_offset_within_split_archive chunked_file_size_within_split_archive 2
+			endif
+			math current_img_layer + 1
+		next j
+		append
+	endif
+endfunction
