@@ -12,15 +12,15 @@ get img_files long
 get hardcoded_file_info_hash long
 math initial_file_info_position = 0
 math img_ver = 0
-if img_sign == 0x32474d49
+if img_sign == 0x32474d49 # IMG2 (Stuntman, from second demo release to final USA release)
 	xmath img_archive_info_size "img_files * 0x38"
 	math initial_file_info_position = 0x0c
 	math img_ver = 1
-elif img_sign == 0x33474d49
+elif img_sign == 0x33474d49 # IMG3 (Stuntman, final Europe release only)
 	get img_archive_info_size long
 	math initial_file_info_position = 0x10
 	math img_ver = 2
-elif img_sign == 0x34474d49
+elif img_sign == 0x34474d49 # IMG4 (starting with Driv3r)
 	get img_archive_info_size long
 	math initial_file_info_position = 0x10
 	math img_ver = 3
