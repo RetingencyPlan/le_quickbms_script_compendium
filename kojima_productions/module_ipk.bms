@@ -3,49 +3,46 @@
 open FDSE "module.ipk"
 
 get ipk_size asize
-
-math ipk_offset == 0
-for
+math ipk_offset = 0
+do
 	goto ipk_offset
-	if ipk_offset >= ipk_size
-		break
+	math limit = 4
+	math mode = 1
+	callfunction ipk_dec_01 1
+	getarray aligned_file_size 1 0
+	getarray file_size 1 1
+	getarray file_name_string_size 1 2
+	getarray file_04 1 3
+	if aligned_file_size != 0
+		xmath limit "aligned_file_size >> 2"
+		math mode = 0
+		callfunction ipk_dec_01 1
+		math file_name_string_location = file_size
+		goto file_name_string_location MEMORY_FILE
+		getdstring file_name file_name_string_size MEMORY_FILE
+		log file_name 0 file_size MEMORY_FILE
 	endif
-	
-	math ipk_number1 == 0xA84E6B2E
-	math ipk_number2 == 0x7E8A6B4C
-	for x = 0 < 4
-		get ipk_byte01 long
-		callfunction decrypt_ipk 1
-		if x = 0
-			math ipk_block_size == ipk_decbyte
-		elif x = 1
-			math ipk_file_size == ipk_decbyte
-		elif x = 2
-			math ipk_name_size == ipk_decbyte
-		elif x = 3
-			math ipk_zero == ipk_decbyte
-		endif
-	next x
-	
-	if ipk_block_size != 0
-		putvarchr MEMORY_FILE ipk_block_size 0
-		log MEMORY_FILE 0 0
-		xmath ipk_file_chunks "ipk_block_size >> 2"
-		for v1 = 0 < ipk_file_chunks
-			xmath v2 "v1 * 4"
-			get ipk_byte01 long
-			callfunction decrypt_ipk 1
-			put ipk_decbyte long MEMORY_FILE
-		next v1
-		goto ipk_file_size MEMORY_FILE
-		getdstring ipk_file_name ipk_name_size MEMORY_FILE
-		log ipk_file_name 0 ipk_file_size MEMORY_FILE
-	endif
-	math ipk_offset += ipk_block_size
-	math ipk_offset += 0x10
-next
+	math ipk_offset + aligned_file_size
+	math ipk_offset + 0x10
+while ipk_offset < ipk_size
 
-startfunction decrypt_ipk
-	xmath ipk_decbyte "ipk_byte01 ^ ipk_number2"
-	math ipk_number2 += ipk_number1
+startfunction ipk_dec_01
+	if mode = 0
+		putvarchr MEMORY_FILE aligned_file_size 0
+		log MEMORY_FILE 0 0
+	endif
+	if mode = 1
+		math ipk_number_01 == 0x7E8A6B4C
+		math ipk_number_02 == 0xA84E6B2E
+	endif
+	for x = 0 < limit
+		get ipk_byte long
+		math ipk_byte ^ ipk_number_01
+		if mode = 0
+			put ipk_byte long MEMORY_FILE
+		elif mode = 1
+			putarray 1 x ipk_byte
+		endif
+		math ipk_number_01 + ipk_number_02
+	next x
 endfunction
