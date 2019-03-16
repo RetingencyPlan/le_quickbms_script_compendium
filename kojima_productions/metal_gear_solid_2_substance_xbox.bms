@@ -39,7 +39,6 @@ if disc_name == "disc"
 				endif
 				math partition_number + 1
 			next partition_check
-			
 			get files long
 			for i = 0 < files
 				getdstring file_name 0x10
@@ -50,19 +49,16 @@ if disc_name == "disc"
 				math pass = 0
 				math file_size_exp_02 = 0
 				math file_size_exp_03 = file_size
-				
 				append
 				for j = 0 <= partition_number
 					getarray archive_name_per_partition 1 j
 					getarray archive_offset_per_partition 2 j
 					getarray archive_size_limit_per_partition 3 j
 					getarray archive_size_per_partition 4 j
-					
 					if file_offset >= archive_offset_per_partition && file_offset <= archive_size_limit_per_partition
 						xmath file_offset_per_archive_chunk "file_offset - archive_offset_per_partition"
 						math pass = 1
 					endif
-					
 					if pass = 1
 						if archive_chunks_per_file = 0
 							math file_size_exp_01 = archive_size_per_partition
@@ -71,13 +67,10 @@ if disc_name == "disc"
 							math file_offset_per_archive_chunk = 0
 							math file_size_exp_01 = archive_size_per_partition
 						endif
-						
 						math file_size_exp_02 + file_size_exp_01
-						
 						if file_size_exp_02 >= file_size
 							math last_archive_chunk_per_file = 1
 						endif
-						
 						if last_archive_chunk_per_file = 0
 							math file_size_per_archive_chunk = file_size_exp_01
 						elif last_archive_chunk_per_file = 1
@@ -87,10 +80,8 @@ if disc_name == "disc"
 								math file_size_per_archive_chunk = file_size_exp_03
 							endif
 						endif
-						
 						xmath file_offset_per_archive_chunk_02 "file_offset_per_archive_chunk << 11"
 						xmath file_size_per_archive_chunk_02 "file_size_per_archive_chunk << 11"
-						
 						open FDSE archive_name_per_partition 1
 						log file_name file_offset_per_archive_chunk_02 file_size_per_archive_chunk_02 1
 						
