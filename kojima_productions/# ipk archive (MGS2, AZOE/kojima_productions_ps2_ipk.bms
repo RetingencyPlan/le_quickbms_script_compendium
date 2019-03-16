@@ -1,6 +1,6 @@
-# module.ipk (MGS2, AZOE/ZOE2, MGS3)
+# ipk archive (MGS2, AZOE/ZOE2, MGS3)
 
-open FDSE "module.ipk"
+open FDDE "ipk"
 
 get ipk_size asize
 math ipk_offset = 0
