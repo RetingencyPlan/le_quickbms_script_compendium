@@ -1,0 +1,542 @@
+get kjp_name basename
+if kjp_name & "face"
+	math mode = 0
+	get face_sign long
+	if face_sign = 0x00000001
+		endian little
+		get face_timestamp long
+		get face_entries long
+		get face_header_size long
+	elif face_sign = 0x01000000
+		endian big
+		get face_timestamp long
+		get face_entries long
+		get face_header_size long
+	else
+		goto 0
+		get face_timestamp long
+		get dvd_sector_number short
+		if dvd_sector_number = 0x0001
+			endian little
+		elif dvd_sector_number = 0x0100
+			endian big
+		endif
+		get header_size_in_dvd_sectors short
+		get face_entries short
+		get hardcoded_internal_project_name short
+		get original_size_of_total_dynamic_entries_in_dvd_sectors long
+		callfunction detect_string_size_for_archive 1
+		for i = 0 < face_entries
+			getdstring face_name name_string_size
+			get face_offset long
+			math face_offset << 11
+			savepos face_info_position
+			goto face_offset
+			math base_offset == face_offset
+			callfunction parse_archive_entries 1
+			goto face_info_position
+		next i
+	endif
+elif kjp_name & "slot"
+	get slot_timestamp long
+	get dvd_sector_number short
+	if dvd_sector_number = 0x0001
+		endian little
+	elif dvd_sector_number = 0x0100
+		endian big
+	endif
+	get header_size_in_dvd_sectors short
+	get slot_entries short
+	get hardcoded_internal_project_name short
+	get original_size_of_total_dynamic_entries_in_dvd_sectors long
+	xmath slot_entry_offset "header_size_in_dvd_sectors << 11"
+	if hardcoded_internal_project_name == 0x4015
+		math slot_version = 1
+	elif hardcoded_internal_project_name == 0x0063
+		math slot_version = 1
+	elif hardcoded_internal_project_name == 0x0000
+		math slot_version = 2
+	else
+		string show_signature p "0x%04x" hardcoded_internal_project_name
+		print " this script does not support your slot[/_3/_n].dat file with this signature - %show_signature% \n see if you can find AnonBaiter for this! "
+		cleanexit
+	endif
+	for i = 0 < slot_entries
+		xmath i2 "i + 1"
+		goto slot_entry_offset
+		get slot_sub_entries long
+		if slot_version = 2
+			get padding long
+		endif
+		xmath slot_entry_info_size "(slot_sub_entries * 8) + 4"
+		xmath slot_entry_size_modulus_test "slot_entry_info_size % (1 << 11)"
+		if slot_entry_modulus_test == 0
+			xmath slot_file_offset "slot_entry_offset + slot_entry_info_size"
+		else
+			xmath slot_file_offset "slot_entry_offset + (((slot_entry_info_size >> 11) + 1) << 11)"
+		endif
+		for j = 0 < slot_sub_entries
+			if slot_version = 1
+				get slot1 long
+				putarray 1 j slot1
+				get slot2 long
+				putarray 2 j slot2
+			elif slot_version = 2
+				get slot1 long
+				putarray 1 j slot1
+				get slot2 long
+				get slot3 long
+				get slot4 long
+				putarray 2 j slot4
+			endif
+		next j
+		for j = 0 < slot_sub_entries
+			xmath slot_file_offset_modulus_test "slot_file_offset % (1 << 11)"
+			if slot_file_offset_modulus_test != 0
+				math slot_file_offset >> 11
+				math slot_file_offset + 1
+				math slot_file_offset << 11
+			endif
+			math general_file_offset = slot_file_offset
+			callfunction parse_entry_types 1
+		next j
+	next i
+elif kjp_name & "stage"
+	math stage_dat_version = 0
+	math stage_entry_flag = 0
+	math is_mgs2_demo = 0
+	math is_encoded = 0
+	math mode = 0
+	get stage_sign long
+	if stage_sign = 0x00000001
+		endian little
+		get stage_timestamp long
+		get stage_entries long
+		get stage_header_size long
+		math is_mgs2_demo = 1
+	elif stage_sign = 0x01000000
+		endian big
+		get stage_timestamp long
+		get stage_entries long
+		get stage_header_size long
+		math is_mgs2_demo = 1
+	else
+		goto 0
+		get stage_timestamp long
+		get dvd_sector_number short
+		if dvd_sector_number = 0x0001
+			endian little
+		elif dvd_sector_number = 0x0100
+			endian big
+		else
+			math is_encoded = 1
+		endif
+		get header_size_in_dvd_sectors short
+		get stage_entries short
+		get hardcoded_internal_project_name short
+		get original_size_of_total_dynamic_entries_in_dvd_sectors long
+	endif
+	if is_mgs2_demo = 1
+		for i = 0 < stage_entries
+			getdstring stage_name 8
+			get stage_offset long
+			math stage_offset << 11
+			savepos stage_info_position
+			goto stage_offset
+			math base_offset == stage_offset
+			callfunction parse_archive_entries 1
+			goto stage_info_position
+		next i
+	endif
+	if is_encoded = 0
+		callfunction detect_string_size_for_archive 1
+		for i = 0 < stage_entries
+			getdstring stage_name name_string_size
+			get stage_offset long
+			math stage_offset << 11
+			savepos stage_info_position
+			goto stage_offset
+			math base_offset == stage_offset
+			callfunction parse_archive_entries 1
+			goto stage_info_position
+		next i
+	elif is_encoded = 1
+		math mode = 1
+		goto 0
+		log MEMORY_FILE 0 0
+		get base_byte long
+		put base_byte long MEMORY_FILE
+		xmath base_key_02 "base_byte ^ 0xf0f0"
+		math byte_length = 3
+		math first_number = base_byte
+		math second_number = base_key_02
+		callfunction stage_decryption_procedure_step_01 1
+		goto 0 MEMORY_FILE
+		get time_stamp time MEMORY_FILE
+		get dvd_sector_number short MEMORY_FILE
+		get header_size_in_dvd_sectors short MEMORY_FILE
+		get stage_entries short MEMORY_FILE
+		get hardcoded_internal_project_name short MEMORY_FILE
+		get original_size_of_total_dynamic_entries_in_dvd_sectors long MEMORY_FILE
+		if hardcoded_internal_project_name == 0x4010 # "MGS2MAIN"
+			math stage_dat_version = 1
+		elif hardcoded_internal_project_name == 0x610a # "MAIN"
+			math stage_dat_version = 1
+		elif hardcoded_internal_project_name == 0x0806 # "ZOE2MAIN"
+			math stage_dat_version = 2
+		elif hardcoded_internal_project_name == 0x4015 # "MGS/MAIN"
+			math stage_dat_version = 3
+		elif hardcoded_internal_project_name == 0x0063
+			math stage_dat_version = 3
+		elif hardcoded_internal_project_name == 0x4212 # "ZOE3MAIN"
+			math stage_dat_version = 3
+		elif hardcoded_internal_project_name == 0x0000
+			math stage_dat_version = 3
+		else
+			string show_signature p "0x%04x" hardcoded_internal_project_name
+			print " this script does not support your stage[2/_2/_3/_n].dat file with this signature - %show_signature% \n see if you can find AnonBaiter for this! "
+			cleanexit
+		endif
+		math backup_b01 = first_number
+		math backup_b02 = second_number
+		math byte_length = 7
+		callfunction stage_decryption_procedure_step_01 1
+		callfunction detect_string_size_for_archive 1
+		math first_number = backup_b01
+		math second_number = backup_b02
+		xmath byte_length "stage_entries * (1 + (name_string_size >> 2))"
+		goto 0x10 MEMORY_FILE
+		callfunction stage_decryption_procedure_step_01 1
+		goto 0x10 MEMORY_FILE
+		for i = 0 < stage_entries
+			log MEMORY_FILE2 0 0
+			getdstring stage_name name_string_size MEMORY_FILE
+			get stage_offset long MEMORY_FILE
+			math stage_offset << 11
+			savepos stage_info_position
+			goto stage_offset
+			math stage_entry_flag = 1
+			set base_string string stage_name
+			if stage_dat_version = 2
+				callfunction hashing_algorithm_02 1
+			else
+				callfunction hashing_algorithm_01 1
+			endif
+			math stage_name_hash = result
+			xmath stage_hash_key "stage_name_hash << 7"
+			xmath first_number "stage_hash_key + base_byte + stage_name_hash + 0xA78925D9"
+			xmath second_number "stage_hash_key + stage_name_hash + 0x7A88FB59"
+			math byte_length = 1
+			callfunction stage_decryption_procedure_step_01 1
+			math base_offset == stage_offset
+			callfunction parse_archive_entries 1
+			goto stage_info_position
+		next i
+	endif
+endif
+
+startfunction hashing_algorithm_01
+	strlen char_size base_string
+	math mask = 0xFFFFFF
+	math first_number = 0
+	math second_number = 0
+	math third_number = 0
+	math result = 0
+	for char = 0 < char_size
+		getvarchr string_byte base_string char byte
+		xmath second_number "first_number >> 19"
+		xmath third_number "first_number << 5"
+		xmath first_number "third_number | second_number"
+		math first_number + string_byte
+		math first_number & mask
+	next char
+	math result = first_number
+endfunction
+
+startfunction hashing_algorithm_02
+	strlen char_size base_string
+	math first_number = 0
+	math second_number = 0
+	math third_number = 0
+	math fourth_number = 0
+	math result = 0
+	for char = 0 < char_size
+		getvarchr string_byte base_string char byte
+		xmath first_number "char & 0xF"
+		xmath first_number "string_byte << first_number"
+		xmath second_number "third_number >> 3"
+		xmath fourth_number "string_byte & 0xF"
+		math second_number + first_number
+		math second_number + string_byte
+		xmath fourth_number "third_number << fourth_number"
+		math fourth_number | second_number
+		math third_number + fourth_number
+	next char
+	math result = third_number
+endfunction
+
+startfunction stage_decryption_procedure_step_01
+	for b1 = 0 < byte_length
+		xmath third_number "first_number * 0x2E90EDD"
+		get current_byte long
+		xmath result_byte "current_byte ^ first_number"
+		if stage_entry_flag = 0
+			put result_byte long MEMORY_FILE
+		elif stage_entry_flag = 1
+			put result_byte long MEMORY_FILE2
+		elif stage_entry_flag = 2
+			put result_byte long MEMORY_FILE3
+		endif
+		xmath fourth_number "third_number + second_number"
+		math first_number = fourth_number
+	next b1
+endfunction
+
+startfunction stage_decryption_procedure_step_02
+	goto general_file_offset
+	get halfword_byte_01 short
+	goto general_file_offset
+	xmath base_compressed_key_number "halfword_byte_01 ^ 0x9385"
+	xmath compressed_key_number_01 "base_compressed_key_number * 0x116"
+	xmath compressed_key_number_02 "((base_compressed_key_number ^ 0x6576) << 16) | base_compressed_key_number"
+	xmath check_length "(compressed_entry_size & 0x0f) % 0x04"
+	if check_length == 0
+		xmath byte_length "compressed_entry_size >> 2"
+	elif check_length != 0
+		xmath byte_length "(compressed_entry_size >> 2) + 1"
+	endif
+	math first_number = compressed_key_number_02
+	math second_number = compressed_key_number_01
+	math stage_entry_flag = 2
+	callfunction stage_decryption_procedure_step_01 1
+	goto 0 MEMORY_FILE3
+	comtype zlib
+	put 0x78 byte MEMORY_FILE3
+	put 0x9c byte MEMORY_FILE3
+	log MEMORY_FILE4 0 compressed_entry_size MEMORY_FILE3
+	clog MEMORY_FILE5 0 compressed_entry_size entry_size MEMORY_FILE4
+endfunction
+
+startfunction detect_string_size_for_archive
+	if mode = 0
+		goto 0x10
+	elif mode = 1
+		goto 0x10 MEMORY_FILE
+	endif
+	math name_string_size = 0
+	for test = 0 < 6
+		if mode = 0
+			get test_byte long
+		elif mode = 1
+			get test_byte long MEMORY_FILE
+		endif
+		if test_byte == header_size_in_dvd_sectors
+			break
+		else
+			math name_string_size + 4
+		endif
+	next text
+	goto 0x10
+endfunction
+
+startfunction parse_archive_entries
+	if mode = 0
+		get files_per_entry long
+	elif mode = 1
+		goto 0 MEMORY_FILE2
+		get files_per_entry long MEMORY_FILE2
+		savepos memory_temp_01 MEMORY_FILE2
+		if stage_dat_version = 2
+			xmath byte_length "files_per_entry * 3"
+		else
+			xmath byte_length "files_per_entry * 2"
+		endif
+		callfunction stage_decryption_procedure_step_01 1
+		goto memory_temp_01 MEMORY_FILE2
+	endif
+	xmath entry_info_size "(files_per_entry * 8) + 4"
+	xmath entry_info_size_modulus_test "entry_info_size % (1 << 11)"
+	if entry_info_size_modulus_test == 0
+		xmath general_file_offset "base_offset + entry_info_size"
+	else
+		xmath general_file_offset "base_offset + (((entry_info_size >> 11) + 1) << 11)"
+	endif
+	for j = 0 < files_per_entry
+		if mode = 0
+			get info1 long
+			get info2 long
+		elif mode = 1
+			if stage_dat_version = 2
+				get info1 long MEMORY_FILE2
+				get info2 long MEMORY_FILE2
+				get info3 long MEMORY_FILE2
+			else
+				get info1 long MEMORY_FILE2
+				get info2 long MEMORY_FILE2
+			endif
+		endif
+		putarray 1 j info1
+		putarray 2 j info2
+		if stage_dat_version = 2
+			putarray 3 j info3
+		endif
+	next j
+	for j = 0 < files_per_entry
+		callfunction streighten_general_file_offset 1
+		callfunction parse_entry_types 1
+	next j
+endfunction
+
+startfunction parse_entry_types
+	log MEMORY_FILE3 0 0
+	log MEMORY_FILE4 0 0
+	log MEMORY_FILE5 0 0
+	log MEMORY_FILE6 0 0
+	getarray entry_type 1 j
+	if kjp_name & "face"
+		if j = 0
+			if entry_type == 0x00000000
+				callfunction parse_file_entries 1
+			endif
+		endif
+	endif
+	if entry_type == 0x7f000000
+		getarray entry_size 2 j
+		if kjp_name & "slot"
+			math slot_entry_offset = slot_file_offset
+		endif
+	elif entry_type == 0x7f000002
+		callfunction parse_file_entries 1
+	elif entry_type == 0x7f000003
+		callfunction parse_file_entries 1
+	elif entry_type == 0x7f000004
+		callfunction parse_file_entries 1
+	elif entry_type == 0x7f000005
+		callfunction parse_file_entries 1
+	elif entry_type == 0x7f000010
+		callfunction parse_file_entries 1
+	elif entry_type == 0x7f010000
+		callfunction parse_file_entries 1
+	endif
+endfunction
+
+startfunction parse_file_entries
+	math 7d_is_here = 0
+	math log_7d = 0
+	if stage_dat_version = 2
+		getarray entry_size 3 j
+	else
+		getarray entry_size 2 j
+	endif
+	math j + 1
+	getarray next_info 1 j
+	xmath is_compressed "next_info & 0xff000000"
+	if is_compressed == 0x7e000000
+		math compressed_entry_size = next_info
+		math compressed_entry_size & 0xffffff
+		if mode = 0
+			clog MEMORY_FILE general_file_offset compressed_entry_size entry_size
+		elif mode = 1
+			callfunction stage_decryption_procedure_step_02 1
+		endif
+		math general_file_offset + compressed_entry_size
+		callfunction streighten_general_file_offset 1
+	else
+		math j - 1
+	endif
+	math j + 1
+	for
+		getarray file_info 1 j
+		xmath is_7d "file_info & 0xff000000"
+		if stage_dat_version = 3
+			if is_7d == 0x7d000000
+				math 7d_is_here = 1
+			endif
+		endif
+		if 7d_is_here = 0
+			if stage_dat_version = 2
+				if entry_type != 0x7f000010
+					getarray hardcoded_extension_hash 1 j
+					getarray hardcoded_name_hash 2 j
+				endif
+				getarray file_offset_within_entry 3 j
+				math j + 1
+				getarray next_file_offset_within_entry 3 j
+			else
+				if entry_type != 0x7f000010
+					xmath first_extension_number "(file_info >> 24) & 0xff"
+					xmath hardcoded_name_hash "file_info & 0xffffff"
+				endif
+				getarray file_offset_within_entry 2 j
+				math j + 1
+				getarray next_file_offset_within_entry 2 j
+			endif
+		elif 7d_is_here = 1
+			xmath first_extension_number "(file_info >> 24) & 0xff"
+			xmath hardcoded_name_hash "file_info & 0xffffff"
+			getarray 7d_offset 2 j
+			if hardcoded_name_hash != 0
+				math j + 1
+				getarray 7d_info 2 j
+				xmath 7d_number "(7d_info >> 24) & 0xff"
+				xmath 7d_size "(7d_info & 0xffffff) << 11"
+				putvarchr MEMORY_FILE6 7d_size 0
+				putvarchr MEMORY_FILE6 0 7d_number long
+				putvarchr MEMORY_FILE6 4 7d_size long
+				math log_7d = 1
+				math j + 1
+			else
+				math j + 1
+			endif
+			math 7d_is_here = 0
+		endif
+		xmath file_size_within_entry "next_file_offset_within_entry - file_offset_within_entry"
+		if kjp_name & "face"
+			string file_name_per_entry p "%s/%06x/%06x.%02x" face_name entry_type hardcoded_name_hash first_extension_number
+		elif kjp_name & "slot"
+			string file_name_per_entry p "%04d/%06x/%06x.%02x" i2 entry_type hardcoded_name_hash first_extension_number
+		elif kjp_name & "stage"
+			if entry_type == 0x7f000010
+				if stage_dat_version = 3
+					string file_name_per_entry p "%s/%06x/%05x.psq" stage_name entry_type file_info
+				else
+					string file_name_per_entry p "%s/%06x/pk%06x.sdx" stage_name entry_type file_info
+				endif
+			else
+				if stage_dat_version = 2
+					string file_name_per_entry p "%s/%06x/%08x.%08x" stage_name entry_type hardcoded_name_hash hardcoded_extension_hash
+				else
+					string file_name_per_entry p "%s/%06x/%06x.%02x" stage_name entry_type hardcoded_name_hash first_extension_number
+				endif
+			endif
+		endif
+		if is_7d == 0x7d000000
+			if log_7d = 1
+				log file_name_per_entry 0 7d_size MEMORY_FILE6
+				math log_7d = 0
+			endif
+		elif is_compressed == 0x7e000000
+			if mode = 0
+				log file_name_per_entry file_offset_within_entry file_size_within_entry MEMORY_FILE
+			elif mode = 1
+				log file_name_per_entry file_offset_within_entry file_size_within_entry MEMORY_FILE5
+			endif
+		else
+			log file_name_per_entry general_file_offset file_size_within_entry
+			math general_file_offset + file_size_within_entry
+		endif
+		if next_file_offset_within_entry == entry_size
+			math j - 1
+			break
+		endif
+	next
+endfunction
+
+startfunction streighten_general_file_offset
+	xmath general_file_offset_modulus_test "general_file_offset % (1 << 11)"
+	if general_file_offset_modulus_test != 0
+		math general_file_offset >> 11
+		math general_file_offset + 1
+		math general_file_offset << 11
+	endif
+endfunction
