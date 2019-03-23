@@ -1,0 +1,26 @@
+# Monster Hunter: World (PS4/XboxOne/Steam) - post-processed chunk#.bin
+
+get pkg_sign long
+if pkg_sign != 0x20474b50
+	break
+endif
+get entry_name_string_size long
+get sub_entry_name_string_size long
+get entries long
+get total_entries long
+goto 0x100
+for i = 0 < entries
+	getdstring entry_name entry_name_string_size
+	get sub_entries long
+	for j = 0 < sub_entries
+		getdstring sub_entry_name sub_entry_name_string_size
+		getdstring remnants_of_a_previous_sub_entry_name sub_entry_name_string_size
+		get sub_entry_size longlong
+		get sub_entry_offset longlong
+		get sub_entry_type long
+		get sub_entry_04 long
+		if sub_entry_type != 1
+			log sub_entry_name sub_entry_offset sub_entry_size
+		endif
+	next j
+next i
