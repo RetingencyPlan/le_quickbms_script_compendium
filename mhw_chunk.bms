@@ -1,0 +1,23 @@
+# Monster Hunter: World (PS4/XboxOne/Steam) - chunk#.bin
+
+comtype oodle
+
+get chunk_name basename
+get chunk_sign long
+if chunk_sign != 0x00504d43	
+	break
+endif
+get chunks long
+append
+for i = 0 < chunks
+	get chunk_info longlong
+	xmath chunk_offset "(chunk_info & 0xffffffffff000000) >> 24"
+	xmath chunk_size "(chunk_info & 0x000000000fffff0) >> 4"
+	xmath chunk_type "chunk_info & 0x00000000000000f"
+	if chunk_type == 0
+		log chunk_name chunk_offset 0x40000
+	elif chunk_type == 2
+		clog chunk_name chunk_offset chunk_size 0x40000
+	endif
+next i
+append
