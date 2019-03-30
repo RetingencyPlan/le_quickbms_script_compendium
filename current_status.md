@@ -108,5 +108,8 @@ this is a list of stuff i have yet to release as scripts due to said scripts nee
   - [7] as we're talking about three 32-bit variables here, the position for the first one is always 0, the position for the second one is 0x5000 for sotet.bin, 0x4800 for radiata.bin, 0x3000 for vp2.bin, and the position for the third one is 0xa000 for sotet.bin, 0x9000 for radiata.bin, 0x6000 for vp2.bin
   - [8] crucial number is 0x13578642 for *both* sotet.bin and radiata.bin(same number as for SO2.BIN, see [3] above), 0x49287491 for vp2.bin
   - [9] signed archive number is 0x00000400 for sotet.bin, 0x34829314 for radiata.bin(same number as for SO2.BIN, see [5] above), 0x18471208 for vp2.bin
+  
+- PlayStation (1994) - MDEC
+  - yes.
 
 Others to follow...
