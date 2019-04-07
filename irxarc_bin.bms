@@ -1,0 +1,23 @@
+# BANDAI NAMCO Studios (as NAMCO TALES STUDIO, PS2 era) - irxarc.bin
+# ---
+# Tales of Symphonia (PS2) - from "Symphonia Team"
+# Tales of the Abyss (PS2) - from "Symphonia Team"
+
+open FDSE "irxarc.bin"
+get irxarc_files long
+math file_info_offset = 0x40
+math file_name_offset = 0x50
+math file_offset = 0x180
+for i = 0 < irxarc_files
+	goto file_info_offset
+	get file_size long
+	goto file_name_offset
+	getdstring file_name 0x30
+	get irx_parameters string
+	log file_name file_offset file_size
+	math file_offset + file_size
+	math file_info_offset = file_offset
+	math file_name_offset = file_offset
+	math file_name_offset + 0x10
+	math file_offset + 0x140
+next i
