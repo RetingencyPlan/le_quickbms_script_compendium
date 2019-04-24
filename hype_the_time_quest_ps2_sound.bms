@@ -1,0 +1,17 @@
+# Hype: The Time Quest (PS2) - [BNM/VB/VSB].BF
+
+get extension_name basename
+string sound_archive_name p "%s.BF" extension_name
+
+if extension_name == "BNM" || extension_name == "VB" || extension_name == "VSB"
+	open FDSE sound_archive_name 0
+	get bank_files short
+	for i = 0 < bank_files
+		get bank_number short
+		get current_file_offset long
+		get next_file_offset long
+		xmath file_size "next_file_offset - current_file_offset"
+		string file_name p "BNK_%d.%s" bank_number extension_name
+		log file_name current_file_offset file_size
+	next i
+endif
