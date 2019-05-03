@@ -189,7 +189,7 @@ if EXISTS != 0
 			endif
 		elif sound_type = 2
 			append
-			string pcm_name p "%s.upcm" NAME
+			string pcm_name p "%s.adpcm" NAME
 			log pcm_name raw_track_offset_within_chunk chunk_track_info_02 MEMORY_FILE
 			if chunk_track_info_04 != 0
 				xmath ac3_offset "(chunk_track_info_03 - chunk_track_info_04) + raw_track_offset_within_chunk"
@@ -202,7 +202,7 @@ if EXISTS != 0
 			callfunction process_compressed_audio_chunk 1
 			append
 			if decompressed_size == chunk_track_info_02
-				string pcm_name p "%s.upcm" NAME
+				string pcm_name p "%s.adpcm" NAME
 				log pcm_name 0 chunk_track_info_02 MEMORY_FILE3
 				log MEMORY_FILE3 0 0
 				if chunk_track_info_04 != 0
