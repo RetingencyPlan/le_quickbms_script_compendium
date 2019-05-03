@@ -30,12 +30,12 @@ if EXISTS != 0
 				get chunk_track_info_04 long MEMORY_FILE
 				savepos raw_track_offset_within_chunk MEMORY_FILE
 				math dat_chunk_position + 0x10
-				if chunk_track_info_01 == 0x51
-					math sound_type = 3
+				if chunk_track_info_01 == 0x40
+					math sound_type = 2
 					callfunction sound_handle 1
 					math dat_chunk_position + chunk_track_info_03
-				elif chunk_track_info_01 == 0x40
-					math sound_type = 2
+				elif chunk_track_info_01 >= 0x50 && chunk_track_info_01 <= 0x51
+					math sound_type = 3
 					callfunction sound_handle 1
 					math dat_chunk_position + chunk_track_info_03
 				else
@@ -60,7 +60,6 @@ if EXISTS != 0
 	next i
 
 	startfunction sound_handle
-		print " handling sound type number %sound_type% "
 		if sound_type = 1
 			math is_vag = 0
 			math is_pcm = 0
@@ -192,9 +191,11 @@ if EXISTS != 0
 			append
 			string pcm_name p "%s.upcm" NAME
 			log pcm_name raw_track_offset_within_chunk chunk_track_info_02 MEMORY_FILE
-			xmath ac3_offset "(chunk_track_info_03 - chunk_track_info_04) + raw_track_offset_within_chunk"
-			string ac3_name p "%s.ac3" NAME
-			log ac3_name ac3_offset chunk_track_info_04 MEMORY_FILE
+			if chunk_track_info_04 != 0
+				xmath ac3_offset "(chunk_track_info_03 - chunk_track_info_04) + raw_track_offset_within_chunk"
+				string ac3_name p "%s.ac3" NAME
+				log ac3_name ac3_offset chunk_track_info_04 MEMORY_FILE
+			endif
 			append
 		elif sound_type = 3
 			log MEMORY_FILE2 raw_track_offset_within_chunk chunk_track_info_03 MEMORY_FILE
@@ -204,9 +205,11 @@ if EXISTS != 0
 				string pcm_name p "%s.upcm" NAME
 				log pcm_name 0 chunk_track_info_02 MEMORY_FILE3
 				log MEMORY_FILE3 0 0
-				xmath ac3_offset "(chunk_track_info_03 - chunk_track_info_04) + raw_track_offset_within_chunk"
-				string ac3_name p "%s.ac3" NAME
-				log ac3_name ac3_offset chunk_track_info_04 MEMORY_FILE
+				if chunk_track_info_04 != 0
+					xmath ac3_offset "(chunk_track_info_03 - chunk_track_info_04) + raw_track_offset_within_chunk"
+					string ac3_name p "%s.ac3" NAME
+					log ac3_name ac3_offset chunk_track_info_04 MEMORY_FILE
+				endif
 			endif
 			append
 		endif
@@ -369,6 +372,7 @@ else
 					math chunk_position = full_chunk_offset
 					log MEMORY_FILE 0 0
 				next i
+				break
 			endif
 			math chunk_position + 16
 		while chunk_position < DAT_SIZE
