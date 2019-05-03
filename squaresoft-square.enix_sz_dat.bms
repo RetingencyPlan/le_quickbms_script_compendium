@@ -8,6 +8,7 @@ get DAT_SIZE asize
 get NAME basename
 
 if EXISTS != 0
+	# "paired" .sz/.dat movies
 	math dat_chunk_offset = 0
 	getdstring intra_quantizer 0x40 1
 	getdstring non_intra_quantizer 0x40 1
@@ -57,6 +58,7 @@ if EXISTS != 0
 			log MEMORY_FILE 0 0
 		endif
 	next i
+
 	startfunction sound_handle
 		print " handling sound type number %sound_type% "
 		if sound_type = 1
@@ -209,6 +211,7 @@ if EXISTS != 0
 			append
 		endif
 	endfunction
+	
 	startfunction process_compressed_audio_chunk
 		get compression_level byte MEMORY_FILE2
 		if compression_level >= 1 && compression_level <= 2
@@ -284,134 +287,152 @@ if EXISTS != 0
 		log MEMORY_FILE2 0 0
 	endfunction
 else
-	/*
-	# "single" .DAT movies(Driving Emotion Type-S, Final Fantasy XI(PS2), Front Mission 5)
-	putvarchr MEMORY_FILE2 DAT_SIZE 0
-	putvarchr MEMORY_FILE3 DAT_SIZE 0
-	log MEMORY_FILE2 0 0
-	log MEMORY_FILE3 0 0
-	set EXTRACT_AUDIO2 0
-	# set this to 1 for extracting any kind of audio data in there
-	get DUMMY01 long
-	get DUMMY02 long
-	get DUMMY03 long
-	get DUMMY04 long
-	get DUMMY05 long
-	get DUMMY06 long
-	get DUMMY07 long
-	get DUMMY08 long
-	get DUMMY09 long
-	if DUMMY09 == 2 || DUMMY09 == 4
-		# multiplexed .DAT format - type 2(video/audio)
-		goto 0
-		savepos OFFSET2
+	# "single" .DAT movies
+	get single_dat_type long
+	if single_dat_type == 0
+		get dat_02 short
+		get dat_03 short
+		get dat_04 long
+		get video_height short
+		get video_width short
+		get dat_07 long
+		get dat_08 long
+		get dat_09 long
+		get dat_10 long
+		get dat_11 long
+		savepos chunk_position
 		do
-			goto OFFSET2
-			get ID long
-			get SIZE1 long
-			get SIZE2 long
-			get SIZE3 long
-			if DUMMY09 == 4
-				getdstring DUMMY10 0x10 # \xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff
-			endif
-			savepos CHUNK_OFFSET2
-			append
-			# there are at least 4 ID values in this type of format:
-			# 0x1 - ???
-			# 0x2 - ???
-			# 0x3 - MPEG2 video data
-			# 0x4 - audio data
-			# 0x5 - ???
-			# 0x6 - ???
-			
-			# you can't actually uncomment both of these conditions, otherwise the script would handle both of them
-			# and the output file would be two things meshed together into one without any accompanying info
-			# around them whatsoever.
-			# if anything you can just comment one of those "ID" conditions to a part of them by using just these two symbols(/*, */),
-			# maybe you can extract something you want that way.
-			if ID == 4 # this ID has another "ID" in which it indicates which audio format is this used on
-				if EXTRACT_AUDIO2 == 0
-					if SIZE3 == 0xffffffff
-						if SIZE2 & 0xffffff00
-							log MEMORY_FILE CHUNK_OFFSET2 SIZE1
-						endif
-					else
-						log MEMORY_FILE CHUNK_OFFSET2 SIZE3
-					endif
-					string FNAME p= "%s_%02x.bin" NAME ID
-					math FINAL_EXTRACTION == 0
-				elif EXTRACT_AUDIO2 == 1
-					if SIZE2 == 0xffffff00
-						string FNAME p "%s.pcm" NAME
-						log FNAME CHUNK_OFFSET2 SIZE1
-					elif SIZE2 == 0xffffff01
-						string FNAME p "%s.ac3" NAME
-						log FNAME CHUNK_OFFSET2 SIZE1
-					elif SIZE2 == 0xffffff03
-						string FNAME p "%s.vsf" NAME
-						log FNAME CHUNK_OFFSET2 SIZE3
-						# SIZE3 is used instead for "VSF" files, otherwise the result will have blank space all over the place and the file will play nothing but glitchy audio on vgmstream
-					endif
-					#math FINAL_EXTRACTION == 4
-				endif
-			endif
-			
-			append
-			savepos OFFSET2
-			
-			# these 0x5/0x6 ID values are just excuses to skip irrelevant data
-			# so we do exactly that right now
-			if SIZE1 == 1
-				math SIZE1 == 0
-			elif SIZE1 == 0xffffffff
-				math SIZE1 == 0
-			endif
-			
-			# to make sure the script doesn't spazz out when handling MPEG2 chunks
-			if ID == 3
-				math OFFSET2 += SIZE2
-			else
-				math OFFSET2 += SIZE1
-			endif
-		while OFFSET2 < DAT_SIZE
-	else
-		# multiplexed .DAT format - type 1(video)
-		savepos OFFSET2
-		do
-			goto OFFSET2
-			get CHUNK_SIZE2 long
-			get INDICATOR long
-			if INDICATOR != 0xffffffff
-				savepos CHUNK_OFFSET2
-			else
-				savepos REAL_POS
-				if REAL_POS u>= DAT_SIZE
-					break
-				else
-					get INDICATOR2 long
-					savepos CHUNK_OFFSET2
-				endif
-			endif
-			if CHUNK_SIZE2 == 0
-				# MPEG2 video(no way to decode it at the moment)
-				string FNAME p= "%s_video.bin" NAME
-			elif CHUNK_SIZE2 == 3
-				# MPEG2 video(no way to decode it at the moment)
-				goto -8 0 SEEK_CUR
-				get DUMMY10 long
-				get DUMMY11 long
-				get CHUNK_SIZE2 long
-				get DUMMY12 long
-				savepos CHUNK_OFFSET2
-				string FNAME p= "%s_0x%08x.bin" NAME DUMMY12
-			endif
-			append
-			log MEMORY_FILE CHUNK_OFFSET2 CHUNK_SIZE2
-			math FINAL_EXTRACTION == 0
-			append
-			savepos OFFSET2
-			math OFFSET2 += CHUNK_SIZE2
-		while OFFSET2 < DAT_SIZE
+			goto chunk_position
+			get chunk_size long
+			get chunk_number long
+			math chunk_position + chunk_size
+			math chunk_position + 8
+		while chunk_position < DAT_SIZE
 	endif
-	*/
+
+	if single_dat_type == 1
+		get dat_02 long
+		get video_height short
+		get video_width short
+		get total_number_of_chunks long
+		get dat_06 long
+		get dat_07 long
+		get dat_08 long
+		get dat_09 long
+		savepos chunk_position
+		do
+			goto chunk_position
+			if chunk_position == 0x20
+				get chunk_track_number long
+				get chunk_size_per_track long
+				get chunk_02 long
+				get chunk_03 long
+				if chunk_track_number == 2
+					savepos chunk_offset_per_track
+					log MEMORY_FILE chunk_offset_per_track chunk_size_per_track
+					for i = 0 < total_number_of_chunks
+						get chunk_offset long MEMORY_FILE
+						xmath full_chunk_offset "chunk_offset + (chunk_size_per_track + 0x30)"
+						get next_chunk_offset long MEMORY_FILE
+						goto -4 MEMORY_FILE SEEK_CUR
+						xmath full_chunk_size "next_chunk_offset - chunk_offset"
+						putarray 1 i full_chunk_offset
+						putarray 2 i full_chunk_size
+					next i
+				endif
+				math chunk_position + chunk_size_per_track
+				log MEMORY_FILE 0 0
+			else
+				for i = 0 < total_number_of_chunks
+					getarray full_chunk_offset 1 i
+					getarray full_chunk_size 2 i
+					log MEMORY_FILE full_chunk_offset full_chunk_size
+					math chunk_position_on_memory = 0
+					do
+						goto chunk_position_on_memory MEMORY_FILE
+						get chunk_track_number long MEMORY_FILE
+						if chunk_track_number == 3
+							get height short MEMORY_FILE
+							get width short MEMORY_FILE
+							get chunk_track_size long MEMORY_FILE
+							get mpeg2_04 long MEMORY_FILE
+						else
+							get chunk_track_size long MEMORY_FILE
+							get chunk_track_sub_number long MEMORY_FILE
+							get chunk_track_04 long MEMORY_FILE
+						endif
+						savepos chunk_offset_per_track MEMORY_FILE
+						callfunction extract_chunk 1
+						math chunk_position_on_memory + 16
+						math chunk_position_on_memory + chunk_track_size
+					while chunk_position_on_memory < full_chunk_size
+					math chunk_position = full_chunk_offset
+					log MEMORY_FILE 0 0
+				next i
+			endif
+			math chunk_position + 16
+		while chunk_position < DAT_SIZE
+	endif
+
+	if single_dat_type == 5
+		get dat_02 long
+		get dat_03 long
+		get dat_04 long
+		get dat_05 long
+		get dat_06 long
+		get dat_07 long
+		get dat_08 long
+		savepos chunk_position
+		math chunks = 0
+		do
+			goto chunk_position
+			get chunk_track_number long
+			math chunks + 1
+			if chunk_track_number == 3
+				get height short
+				get width short
+				get chunk_track_size long
+				get mpeg2_04 long
+			else
+				get chunk_track_size long
+				get chunk_track_sub_number long
+				get chunk_track_actual_size long
+			endif
+			get padding_01 long
+			get padding_02 long
+			get padding_03 long
+			get padding_04 long
+			savepos chunk_offset_per_track
+			callfunction extract_chunk 1
+			math chunk_position + 32
+			if chunk_track_number == 1
+				math chunk_track_size = 0
+			elif chunk_track_number == 6
+				math chunk_track_size = 0
+			endif
+			math chunk_position + chunk_track_size
+		while chunk_position < DAT_SIZE
+	endif
 endif
+
+startfunction extract_chunk
+	# single .dat movie files like to do things differently
+	append
+	if chunk_track_number == 4
+		if chunk_track_sub_number == 0xffffff00
+			string chunk_name p "%s.pcm" NAME
+		elif chunk_track_sub_number == 0xffffff01
+			string chunk_name p "%s.ac3" NAME
+		elif chunk_track_sub_number == 0xffffff02
+			string chunk_name p "%s.adpcm" NAME
+		elif chunk_track_sub_number == 0xffffff03
+			string chunk_name p "%s.vsf" NAME
+		endif
+		if single_dat_type == 1
+			log chunk_name chunk_offset_per_track chunk_track_size MEMORY_FILE
+		elif single_dat_type == 5
+			log chunk_name chunk_offset_per_track chunk_track_actual_size
+		endif
+	endif
+	append
+endfunction
