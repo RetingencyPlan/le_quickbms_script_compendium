@@ -1,0 +1,27 @@
+# dvdimage.pos/dvdimage.dat
+# ---
+# Front Mission 4 (PS2)
+# Front Mission Online (PS2)
+# Front Mission 5 (PS2)
+
+open FDDE "pos" 0
+open FDDE "dat" 1
+
+get pos_entries long
+xmath pos_info_offset "(pos_entries * 4) + 8"
+for i = 0 < pos_entries
+	get pos_entry_id short
+	get pos_entry_entries short
+	savepos tmp_01
+	goto pos_info_offset
+	for j = 0 < pos_entry_entries
+		get file_offset long
+		math file_offset << 11
+		get file_size long
+		xmath j2 "j + 1"
+		string temp_name p "%05d/%03d." pos_entry_id j2
+		log temp_name file_offset file_size 1
+		math pos_info_offset + 8
+	next j
+	goto tmp_01
+next i
