@@ -63,15 +63,15 @@ for i = 0 < data_bin_files
 next i
 
 math file_offset = 0
-putarray 6 0 "modules/sio2man.irx"
-putarray 6 1 "modules/padman.irx"
-putarray 6 2 "modules/mcman.irx"
-putarray 6 3 "modules/mcserv.irx"
-putarray 6 4 "modules/msifrpc.irx"
-putarray 6 5 "modules/libsd.irx"
-putarray 6 6 "modules/cdvdstm.irx"
-putarray 6 7 "modules/mcd.irx"
-putarray 6 8 "modules/sddrv_cd.irx"
+putarray 6 0 "modules\sio2man.irx"
+putarray 6 1 "modules\padman.irx"
+putarray 6 2 "modules\mcman.irx"
+putarray 6 3 "modules\mcserv.irx"
+putarray 6 4 "modules\msifrpc.irx"
+putarray 6 5 "modules\libsd.irx"
+putarray 6 6 "modules\cdvdstm.irx"
+putarray 6 7 "modules\mcd.irx"
+putarray 6 8 "modules\sddrv_cd.irx"
 for j = 0 < modules_bin_files
 	getarray file_size 5 j
 	getarray file_name 6 j
