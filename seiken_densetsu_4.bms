@@ -1,0 +1,92 @@
+# Seiken Densetsu 4/Dawn of Mana (PS2)
+# ---
+# for now, this script only covers the Japanese release of the game
+
+open FDSE "SLPM_665.76"
+open FDSE "data.bin" 1
+open FDSE "modules.bin" 2
+
+goto 0x553960
+xmath data_bin_files "0x86c8 >> 3"
+for i = 0 < data_bin_files
+	get file_number long
+	putarray 1 i file_number
+	get file_offset long
+	putarray 2 i file_offset
+next i
+xmath modules_bin_files "0x24 >> 2"
+for j = 0 < modules_bin_files
+	get file_size long
+	putarray 5 j file_size
+next j
+
+getarray file_name_index_offset 2 11
+math file_name_index_offset << 11
+goto file_name_index_offset 1
+for i = 0 < 0x11a3
+	get additional_file_info line 1
+	string additional_file_info R "," " "
+	string file_name_info S additional_file_info file_name file_number
+	putarray 3 i file_name
+	putarray 4 i file_number
+next i
+
+xmath last_file "data_bin_files - 1"
+math j2 = 0
+for i = 0 < data_bin_files
+	getarray file_number 1 i
+	getarray file_offset 2 i
+	set file_name string ""
+	for j = j2 < 0x11a3
+		getarray file_name_string 3 j
+		getarray file_name_id 4 j
+		if file_name_id != file_number
+			math j + 1
+		else
+			string file_name p "data\%s" file_name_string
+			break
+		endif
+	next j2
+	if i != last_file
+		math i + 1
+		getarray file_size 2 i
+		math i - 1
+		math file_size - file_offset
+	else
+		math file_size = 0
+	endif
+	math file_offset << 11
+	math file_size << 11
+	if file_size != 0
+		log file_name file_offset file_size 1
+	endif
+next i
+
+math file_offset = 0
+putarray 6 0 "modules/sio2man.irx"
+putarray 6 1 "modules/padman.irx"
+putarray 6 2 "modules/mcman.irx"
+putarray 6 3 "modules/mcserv.irx"
+putarray 6 4 "modules/msifrpc.irx"
+putarray 6 5 "modules/libsd.irx"
+putarray 6 6 "modules/cdvdstm.irx"
+putarray 6 7 "modules/mcd.irx"
+putarray 6 8 "modules/sddrv_cd.irx"
+for j = 0 < modules_bin_files
+	getarray file_size 5 j
+	getarray file_name 6 j
+	xmath temp_01 "(file_offset + file_size) - 1"
+	goto temp_01 2
+	math file_size_02 = file_size
+	for blank_spaces = 0
+		get blank_space byte 2
+		goto -2 2 SEEK_CUR
+		if blank_space == 0xcd
+			math file_size_02 - 1
+		else
+			break
+		endif
+	next
+	log file_name file_offset file_size_02 2
+	math file_offset + file_size
+next j
