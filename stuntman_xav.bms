@@ -1,0 +1,43 @@
+idstring "XAVS"
+get video_height short
+get video_width short
+get xav_03 long
+get xav_audio_layers short
+get xav_05 short
+get xav_06 long
+get xav_07 long
+savepos xav_offset
+goto xav_offset
+get xav_size asize
+get xav_name basename
+append
+do
+	get chunk_info long
+	savepos chunk_offset
+	xmath chunk_size "(chunk_info & 0x00ffff00) >> 8"
+	xmath chunk_type "chunk_info & 0x000000ff"
+	if chunk_info == 0x30562421
+	elif chunk_info == 0x31562421
+	elif chunk_info == 0x534f455f
+	else
+		if chunk_type == 0x56
+			/*
+			# iqval
+			08 10 10 13 10 13 16 16 16 16 16 16 1A 18 1A 1B
+			1B 1B 1A 1A 1A 1A 1B 1B 1B 1D 1D 1D 22 22 22 1D
+			1D 1D 1B 1B 1D 1D 20 20 22 22 25 26 25 23 23 22
+			23 26 26 28 28 28 30 30 2E 2E 38 38 3A 45 45 53
+			10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10
+
+			# vqval
+			00 00 21 04 42 08 E0 03 84 10 A5 14 C6 18 E7 1C
+			1F 00 29 25 4A 29 00 7C 8C 31 AD 35 FF 7F CE 39
+			*/
+		endif
+		string temp_name p "%s.%02x" xav_name chunk_type
+		log temp_name chunk_offset chunk_size
+		math chunk_offset + chunk_size
+	endif
+	goto chunk_offset
+while chunk_offset < xav_size
+append
