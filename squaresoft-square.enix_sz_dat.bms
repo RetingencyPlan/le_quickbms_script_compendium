@@ -293,23 +293,36 @@ else
 	# "single" .DAT movies
 	get single_dat_type long
 	if single_dat_type == 0
-		get dat_02 short
-		get dat_03 short
-		get dat_04 long
+		get dat_02 byte
+		get dat_03 byte
+		get dat_04 short
+		get dat_05 long
 		get video_height short
 		get video_width short
-		get dat_07 long
 		get dat_08 long
 		get dat_09 long
 		get dat_10 long
 		get dat_11 long
+		if dat_03 == 0xff
+			get dat_12 long
+		endif
 		savepos chunk_position
 		do
 			goto chunk_position
-			get chunk_size long
-			get chunk_number long
-			math chunk_position + chunk_size
-			math chunk_position + 8
+			if dat_03 == 0xff
+				get chunk_size long
+				get chunk_number long
+				math chunk_position + chunk_size
+				math chunk_position + 8
+			endif
+			if dat_03 == 0x01
+				get chunk_size_01 long
+				get chunk_size_02 long
+				get chunk_number long
+				get chunk_04 long
+				math chunk_position + chunk_size_02
+				math chunk_position + 16
+			endif
 		while chunk_position < DAT_SIZE
 	endif
 
