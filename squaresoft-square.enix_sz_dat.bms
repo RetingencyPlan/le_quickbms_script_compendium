@@ -70,6 +70,11 @@ if EXISTS != 0
 				math is_vag = 1
 				math vag_chunksize = chunk_track_info_01
 			endif
+			if chunk_track_info_01 == 0x3860
+				math is_vag = 1
+				math bilingual = 1
+				math vag_chunksize_per_language = 0x1c30
+			endif
 			# individual PCM16 chunks
 			if chunk_track_info_01 == 0x3c00
 				math is_pcm = 1
@@ -82,12 +87,12 @@ if EXISTS != 0
 			if chunk_track_info_01 == 0x7800
 				math is_pcm = 1
 				math bilingual = 1
-				math pcm_chunksize = chunk_track_info_01
+				math pcm_chunksize_per_language = 0x3c00
 			endif
 			if chunk_track_info_01 == 0xc800
 				math is_pcm = 1
 				math bilingual = 1
-				math pcm_chunksize = chunk_track_info_01
+				math pcm_chunksize_per_language = 0x6400
 			endif
 			# PCM16+AC-3 chunks
 			if chunk_track_info_01 == 0x5110
@@ -113,22 +118,28 @@ if EXISTS != 0
 			if chunk_track_info_01 == 0xa220
 				math is_pcm_and_ac3 = 1
 				math bilingual = 1
-				math pcm_chunksize = 0x7800
-				math ac3_chunksize = 0x2a20
+				math pcm_chunksize_per_language = 0x3c00
+				math ac3_chunksize_per_language = 0x1510
 			endif
 			if chunk_track_info_01 == 0x10800
 				math is_pcm_and_ac3 = 1
 				math bilingual = 1
-				math pcm_chunksize = 0xc800
-				math ac3_chunksize = 0x4000
+				math pcm_chunksize_per_language = 0x6400
+				math ac3_chunksize_per_language = 0x2000
 			endif
 			if is_vag = 1
 				append
 				if bilingual = 0
-					string adpcm_name p "%s.vag" NAME
-					log adpcm_name raw_track_offset_within_chunk vag_chunksize MEMORY_FILE
+					string vag_name p "%s.vag" NAME
+					log vag_name raw_track_offset_within_chunk vag_chunksize MEMORY_FILE
 				elif bilingual = 1
-					print " \n VAG chunk with two or more language tracks in its hands? \n what, do you want me to handle that!? "
+					math vag_language_track_offset_within_chunk = raw_track_offset_within_chunk
+					for language = 0 < 2
+						xmath language2 "language + 1"
+						string vag_name p "[%02d]%s.vag" language2 NAME
+						log vag_name vag_language_track_offset_within_chunk vag_chunksize_per_language MEMORY_FILE
+						math vag_language_track_offset_within_chunk + vag_chunksize_per_language
+					next language
 				endif
 				append
 			endif
@@ -138,7 +149,6 @@ if EXISTS != 0
 					string pcm_name p "%s.pcm" NAME
 					log pcm_name raw_track_offset_within_chunk pcm_chunksize MEMORY_FILE
 				elif bilingual = 1
-					xmath pcm_chunksize_per_language "pcm_chunksize >> 1"
 					math pcm_language_track_offset_within_chunk = raw_track_offset_within_chunk
 					for language = 0 < 2
 						xmath language2 "language + 1"
@@ -158,7 +168,6 @@ if EXISTS != 0
 					xmath ac3_offset "pcm_chunksize + raw_track_offset_within_chunk"
 					log ac3_name ac3_offset ac3_chunksize MEMORY_FILE
 				elif bilingual = 1
-					xmath pcm_chunksize_per_language "pcm_chunksize >> 1"
 					math pcm_language_track_offset_within_chunk = raw_track_offset_within_chunk
 					for language = 0 < 2
 						xmath language2 "language + 1"
@@ -167,7 +176,6 @@ if EXISTS != 0
 						putarray 3 language pcm_language_track_offset_within_chunk
 						math pcm_language_track_offset_within_chunk + pcm_chunksize_per_language
 					next language
-					xmath ac3_chunksize_per_language "ac3_chunksize >> 1"
 					math ac3_language_track_offset_within_chunk = pcm_language_track_offset_within_chunk
 					for language = 0 < 2
 						xmath language2 "language + 1"
