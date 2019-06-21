@@ -10,8 +10,18 @@ get NAME basename
 if EXISTS != 0
 	# "paired" .sz/.dat movies
 	math dat_chunk_offset = 0
-	getdstring intra_quantizer 0x40 1
-	getdstring non_intra_quantizer 0x40 1
+	math intra_quantizer_offset = 0
+	math non_intra_quantizer_offset = 0x40
+	for quantizer = 0 < 0x40
+		goto intra_quantizer_offset 1
+		get intra_byte byte 1
+		math intra_quantizer_offset + 1
+		putarray 101 quantizer intra_byte
+		goto non_intra_quantizer_offset 1
+		get non_intra_byte byte 1
+		math non_intra_quantizer_offset + 1
+		putarray 102 quantizer non_intra_byte
+	next quantizer
 	log MEMORY_FILE 0 0
 	for i = 0
 		putarray 0 0 dat_chunk_offset
@@ -136,7 +146,7 @@ if EXISTS != 0
 					math vag_language_track_offset_within_chunk = raw_track_offset_within_chunk
 					for language = 0 < 2
 						xmath language2 "language + 1"
-						string vag_name p "[%02d]%s.vag" language2 NAME
+						string vag_name p "%s[%02d].vag" NAME language2
 						log vag_name vag_language_track_offset_within_chunk vag_chunksize_per_language MEMORY_FILE
 						math vag_language_track_offset_within_chunk + vag_chunksize_per_language
 					next language
@@ -152,7 +162,7 @@ if EXISTS != 0
 					math pcm_language_track_offset_within_chunk = raw_track_offset_within_chunk
 					for language = 0 < 2
 						xmath language2 "language + 1"
-						string pcm_name p "[%02d]%s.pcm" language2 NAME
+						string pcm_name p "%s[%02d].pcm" NAME language2
 						log pcm_name pcm_language_track_offset_within_chunk pcm_chunksize_per_language MEMORY_FILE
 						math pcm_language_track_offset_within_chunk + pcm_chunksize_per_language
 					next language
@@ -166,12 +176,29 @@ if EXISTS != 0
 					log pcm_name raw_track_offset_within_chunk pcm_chunksize MEMORY_FILE
 					string ac3_name p "%s.ac3" NAME
 					xmath ac3_offset "pcm_chunksize + raw_track_offset_within_chunk"
+					xmath ac3_last_offset "(ac3_offset + ac3_chunksize) - 8"
+					for
+						goto ac3_last_offset MEMORY_FILE
+						get zero_byte_01 long MEMORY_FILE
+						get zero_byte_02 long MEMORY_FILE
+						if zero_byte_02 = 0
+							math ac3_chunksize - 4
+						else
+							break
+						endif
+						if zero_byte_01 = 0
+							math ac3_chunksize - 4
+						else
+							break
+						endif
+						math ac3_last_offset - 8
+					next
 					log ac3_name ac3_offset ac3_chunksize MEMORY_FILE
 				elif bilingual = 1
 					math pcm_language_track_offset_within_chunk = raw_track_offset_within_chunk
 					for language = 0 < 2
 						xmath language2 "language + 1"
-						string pcm_name p "[%02d]%s.pcm" language2 NAME
+						string pcm_name p "%s[%02d].pcm" NAME language2
 						putarray 1 language pcm_name
 						putarray 3 language pcm_language_track_offset_within_chunk
 						math pcm_language_track_offset_within_chunk + pcm_chunksize_per_language
@@ -179,7 +206,7 @@ if EXISTS != 0
 					math ac3_language_track_offset_within_chunk = pcm_language_track_offset_within_chunk
 					for language = 0 < 2
 						xmath language2 "language + 1"
-						string ac3_name p "[%02d]%s.ac3" language2 NAME
+						string ac3_name p "%s[%02d].ac3" NAME language2
 						putarray 2 language ac3_name
 						putarray 4 language ac3_language_track_offset_within_chunk
 						math ac3_language_track_offset_within_chunk + ac3_chunksize_per_language
@@ -190,7 +217,25 @@ if EXISTS != 0
 						getarray pcm_language_track_offset_within_chunk 3 language
 						getarray ac3_language_track_offset_within_chunk 4 language
 						log pcm_name pcm_language_track_offset_within_chunk pcm_chunksize_per_language MEMORY_FILE
-						log ac3_name ac3_language_track_offset_within_chunk ac3_chunksize_per_language MEMORY_FILE
+						math ac3_actual_chunksize = ac3_chunksize_per_language
+						xmath ac3_last_offset "(ac3_language_track_offset_within_chunk + ac3_chunksize_per_language) - 8"
+						for
+							goto ac3_last_offset MEMORY_FILE
+							get zero_byte_01 long MEMORY_FILE
+							get zero_byte_02 long MEMORY_FILE
+							if zero_byte_02 = 0
+								math ac3_actual_chunksize - 4
+							else
+								break
+							endif
+							if zero_byte_01 = 0
+								math ac3_actual_chunksize - 4
+							else
+								break
+							endif
+							math ac3_last_offset - 8
+						next
+						log ac3_name ac3_language_track_offset_within_chunk ac3_actual_chunksize MEMORY_FILE
 					next language
 				endif
 				append
