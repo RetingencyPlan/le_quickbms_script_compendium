@@ -1,11 +1,18 @@
-# DOOM 3 BFG Edition (Windows, PlayStation 3, Xbox 360)
+# DOOM 3 BFG Edition (Windows, PlayStation 3, Xbox 360, Android)
 
-open FDDE "resources" 0
-open FDDE "crc" 1
+get name basename
+get ext extension
+math is_android = 0
+
+if ext == "obb"
+	math is_android = 1
+endif
+if ext == "resources" || ext == "crc"
+	open FDDE "resources" 0
+	open FDDE "crc" 1
+endif
 
 endian big
-
-get resources_crc_name basename 0
 
 get resources_sign long 0
 if resources_sign != 0xd000000d
@@ -16,20 +23,25 @@ get resources_info_offset long 0
 get resources_info_size long 0
 goto resources_info_offset 0
 get resources_files long 0
-get crc_sign_01 long 1
-if crc_sign_01 != 0xcc00cc00
-	print " this is not a .crc file from DOOM 3 BFG Edition. \n if in doubt, find me(AnonBaiter) here at one of my github repositories below and raise a issue there. \n https://github.com/AnonBaiter/le_quickbms_script_compendium "
-	cleanexit
+if is_android = 0
+	get crc_sign_01 long 1
+	if crc_sign_01 != 0xcc00cc00
+		print " this is not a .crc file from DOOM 3 BFG Edition. \n if in doubt, find me(AnonBaiter) here at one of my github repositories below and raise a issue there. \n https://github.com/AnonBaiter/le_quickbms_script_compendium "
+		cleanexit
+	endif
+	get crc_sign_02 long 1
+	if crc_sign_02 != 1
+		print " this is not a .crc file from DOOM 3 BFG Edition. \n if in doubt, find me(AnonBaiter) here at one of my github repositories below and raise a issue there. \n https://github.com/AnonBaiter/le_quickbms_script_compendium "
+		cleanexit
+	endif
+	get crc_name_hash long 1
+	get crc_files long 1
+	if resources_files == crc_files
+		math files == crc_files
+	endif
 endif
-get crc_sign_02 long 1
-if crc_sign_02 != 1
-	print " this is not a .crc file from DOOM 3 BFG Edition. \n if in doubt, find me(AnonBaiter) here at one of my github repositories below and raise a issue there. \n https://github.com/AnonBaiter/le_quickbms_script_compendium "
-	cleanexit
-endif
-get crc_name_hash long 1
-get crc_files long 1
-if resources_files == crc_files
-	math files == crc_files
+if is_android = 1
+	math files = resources_files
 endif
 for i = 0 < files
 	get file_01 long 0
@@ -37,6 +49,8 @@ for i = 0 < files
 	getdstring file_name file_name_string_size 0
 	get file_offset long 0
 	get file_size long 0
-	get file_name_hash long 1
+	if is_android = 0
+		get file_name_hash long 1
+	endif
 	log file_name file_offset file_size 0
 next i
