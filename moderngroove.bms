@@ -1,0 +1,16 @@
+# ModernGroove - Ministry of Sound Edition (PS2) - MGPS2.MGA
+
+get moderngroove_file filename
+
+if moderngroove_file != "MGPS2.MGA"
+	print " whoops "
+	cleanexit
+endif
+
+get mga_files longlong
+for i = 0 < mga_files
+	get file_offset longlong
+	get file_size longlong
+	getdstring file_name 0x30
+	log file_name file_offset file_size
+next i
