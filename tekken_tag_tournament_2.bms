@@ -1,0 +1,145 @@
+# Tekken Tag Tournament 2 (System 369, PS3, Xbox 360, Wii U)
+
+get ttt2_file basename
+get ttt2_ext extension
+math file_number = 0
+
+if ttt2_ext == "bin"
+	endian big
+	if ttt2_file == "nrfo"
+		get ofs_files long
+		math data_part = 0
+		math mode = 1
+		for i = 0 < ofs_files
+			string data_name p "data%03d" data_part
+			string bin_name p "%s.bin" data_name
+			string ofs_name p "%s.ofs" data_name
+			open FDSE bin_name 1 EXISTS
+			if EXISTS = 0
+				math data_part + 1
+				math i - 1
+			else
+				get ofs_offset long
+				get ofs_size long
+				if mode = 0
+					log ofs_name ofs_offset ofs_size
+				elif mode = 1
+					callfunction parse_ofs 1
+				endif
+				math data_part + 1
+			endif
+		next i
+	endif
+elif ttt2_ext == "ofs"
+	endian big
+	callfunction parse_ofs 1
+elif ttt2_ext == "dat"
+	# (todo) figure out index.dat
+	endian little
+	get sarc_sign long
+	if sarc_sign != 0x63726173
+		break
+	endif
+	get sarc_files long
+	for i = 0 < sarc_files
+		get file_size longlong
+		get file_offset longlong
+		log "" file_offset file_size
+	next i
+endif
+
+startfunction parse_ofs
+	math bin_pos = 0
+	math ofs_pos = 0
+	if ttt2_ext == "bin"
+		if ttt2_file == "nrfo"
+			log MEMORY_FILE ofs_offset ofs_size
+		endif
+	elif ttt2_ext == "ofs"
+		open FDDE "bin" 1
+		get ofs_size asize 0
+	endif
+	get bin_size asize 1
+	math file_number = 1
+	for bin_pos = bin_pos < bin_size
+		goto bin_pos file_number
+		callfunction isombff 1
+		math bin_pos + chunk_size
+	next
+	if ttt2_ext == "bin"
+		if ttt2_file == "nrfo"
+			math file_number = -1
+		endif
+	elif ttt2_ext == "ofs"
+		math file_number = 0
+	endif
+	for ofs_pos = ofs_pos < ofs_size
+		goto ofs_pos file_number
+		callfunction isombff 1
+		math ofs_pos + chunk_size
+	next
+	math files = ofsi_files
+	for file = 0 < files
+		getarray file_hash 1 file
+		getarray file_02 2 file
+		getarray file_offset 3 file
+		getarray remaining_file_size 4 file
+		math file + 1
+		getarray next_file_offset 3 file
+		math file - 1
+		xmath actual_file_offset "file_offset + imge_offset"
+		if remaining_file_size = 0
+			xmath actual_file_size "next_file_offset - file_offset"
+		else
+			xmath actual_file_size "((next_file_offset - file_offset) - (1 << 4)) | remaining_file_size"
+		endif
+		if ttt2_ext == "bin"
+			if ttt2_file == "nrfo"
+				string file_name p "%s/%08x." data_name file_hash
+			endif
+		elif ttt2_ext == "ofs"
+			string file_name p "%08x." file_hash
+		endif
+		log file_name actual_file_offset actual_file_size 1
+	next file
+endfunction
+
+startfunction isombff
+	get chunk_size long file_number
+	get chunk_type long file_number
+	if chunk_type == 0x66747970
+		get file_type_01 long file_number
+		get file_sign long file_number
+		get file_type_02 long file_number
+		if file_type_01 == file_type_02
+			math file_type == file_type_02
+		endif
+	endif
+	if chunk_type == 0x68656164
+		if file_type == 0x6e72666f
+			get bin_type long file_number
+		endif
+	endif
+	if chunk_type == 0x696d6765
+		savepos imge_offset file_number
+	endif
+	if chunk_type == 0x6f667369
+		xmath ofsi_files "(chunk_size - 8) >> 3"
+		for ofsi_count = 0 < ofsi_files
+			get file_hash long file_number
+			putarray 1 ofsi_count file_hash
+			get file_02 long file_number
+			putarray 2 ofsi_count file_02
+		next ofsi_count
+	endif
+	if chunk_type == 0x6f667364
+		xmath ofso_files "(chunk_size - 8) >> 2"
+		for ofso_count = 0 < ofso_files
+			get file_03 long file_number
+			xmath file_offset "file_03 & 0xfffffff0"
+			putarray 3 ofso_count file_offset
+			xmath remaining_file_size "file_03 & 0xf"
+			putarray 4 ofso_count remaining_file_size
+		next ofso_count
+	endif
+endfunction
