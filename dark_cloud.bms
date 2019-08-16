@@ -5,16 +5,16 @@ get EXT extension
 
 if EXT == "HED"
 	open FDDE "DAT" 1
-    get hed_size asize
-    xmath files "hed_size / 0x50"
-    for i = 0 < files
-        getdstring file_name 0x40
-        get file_offset long
-        get file_size long
-        get hed_03 long
-        get hed_04 long
-	log file_name file_offset file_size 1
-    next i
+	get hed_size asize
+	xmath files "hed_size / 0x50"
+	for i = 0 < files
+		getdstring file_name 0x40
+		get file_offset long
+		get file_size long
+		get hed_03 long
+		get hed_04 long
+		log file_name file_offset file_size 1
+	next i
 elif EXT == "HD2"
 	open FDDE "DAT" 1
 	for
