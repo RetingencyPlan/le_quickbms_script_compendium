@@ -1,4 +1,10 @@
 # Tekken Tag Tournament 2 (System 369, PS3, Xbox 360, Wii U)
+# ---
+# from what i've seen, the PS3 and Wii U versions of the game uses some sort of encryption method for its data###.bin files,
+# as for the Xbox 360 version said files are compressed into raw # lzx/xmemlzx/xmemdecompress files.
+# and this is for data###.bin files that doesn't store either audio(nus3bank) or video(pam/wmv/usm), these are the ones that are exempt from either method.
+# this script will extract every single file that exists there through either nrfo.bin or data###.ofs as-is,
+# so the only useful thing you'll get out of them are .nus3bank and .pam/.wmv/.usm files, respectively.
 
 get ttt2_file basename
 get ttt2_ext extension
@@ -143,3 +149,5 @@ startfunction isombff
 		next ofso_count
 	endif
 endfunction
+
+# P.S. - should you have the arcade data for Tekken Tag Tournament 2 for any reason or no reason, let me know and tell me how do these files look like when viewed through an hex editor!
