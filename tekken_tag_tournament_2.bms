@@ -69,7 +69,7 @@ startfunction parse_ofs
 	math file_number = 1
 	for bin_pos = bin_pos < bin_size
 		goto bin_pos file_number
-		callfunction isombff 1
+		callfunction isobmff 1
 		math bin_pos + chunk_size
 	next
 	if ttt2_ext == "bin"
@@ -81,7 +81,7 @@ startfunction parse_ofs
 	endif
 	for ofs_pos = ofs_pos < ofs_size
 		goto ofs_pos file_number
-		callfunction isombff 1
+		callfunction isobmff 1
 		math ofs_pos + chunk_size
 	next
 	math files = ofsi_files
@@ -110,7 +110,7 @@ startfunction parse_ofs
 	next file
 endfunction
 
-startfunction isombff
+startfunction isobmff
 	get chunk_size long file_number
 	get chunk_type long file_number
 	if chunk_type == 0x66747970
@@ -149,5 +149,3 @@ startfunction isombff
 		next ofso_count
 	endif
 endfunction
-
-# P.S. - should you have the arcade data for Tekken Tag Tournament 2 for any reason or no reason, let me know and tell me how do these files look like when viewed through an hex editor!
