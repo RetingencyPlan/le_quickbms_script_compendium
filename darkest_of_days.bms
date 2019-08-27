@@ -1,0 +1,43 @@
+# Darkest of Days
+
+get name filename
+get ext extension
+
+if ext == "cage"
+	comtype zlib_noerror
+	get cage_size asize
+	math cage_offset = 0
+	for i = 0
+		goto cage_offset
+		if cage_offset >= cage_size
+			print " this script has reached through the tail end of %name%. "
+			cleanexit
+		endif
+		get file_name string
+		get original_file_size long
+		get compressed_file_size long
+		savepos cage_offset
+		math chunk_offset_within_file = cage_offset
+		append
+		for j = 0 < compressed_file_size
+			math skip_this_chunk = 0
+			goto chunk_offset_within_file
+			get original_chunk_size long
+			get compressed_chunk_size long
+			math chunk_offset_within_file + 8
+			if original_chunk_size == 0x10
+			if compressed_chunk_size == 0x13
+				math skip_this_chunk = 1
+			endif
+			endif
+			if skip_this_chunk = 0
+				clog file_name chunk_offset_within_file compressed_chunk_size original_chunk_size
+			endif
+			math j + 8
+			math chunk_offset_within_file + compressed_chunk_size
+			math j + compressed_chunk_size
+		next
+		append
+		math cage_offset + compressed_file_size
+	next i
+endif
