@@ -1,0 +1,287 @@
+# Remedy Entertainment - *.bin/*.rmdp
+
+get remedy_extension extension
+open FDDE "rmdp" 1
+
+if remedy_extension == "bin"
+	# (todo) a re-import feature within the script is being considered
+	get bin_endian_type byte
+	if bin_endian_type == 0
+		endian little
+	elif bin_endian_type == 1
+		endian big
+	endif
+	get bin_version long
+	get bin_directories long
+	get bin_files long
+	if bin_version >= 7
+		get bin05 longlong
+	endif
+	get bin_name_size long
+	getdstring bin_dummy_data 0x80
+	if bin_version == 2
+		xmath bin_name_offset "((bin_directories * 28) + (bin_files * 40)) + 0x91"
+	elif bin_version == 7
+		xmath bin_name_offset "((bin_directories * 28) + (bin_files * 48)) + (0x99 + 0x1c)"
+	elif bin_version >= 8
+		xmath bin_name_offset "((bin_directories * 48) + (bin_files * 60)) + (0x99 + 0x30)"
+	endif
+	for one = 0 < bin_directories
+		if bin_version <= 7
+			get directory_01 long
+			putarray 01 one directory_01
+			get directory_02 long
+			putarray 02 one directory_02
+			get directory_03 long
+			putarray 03 one directory_03
+			get directory_04 long
+			putarray 04 one directory_04
+			get directory_05 long
+			putarray 05 one directory_05
+			get directory_06 long
+			putarray 06 one directory_06
+			get directory_07 long
+			putarray 07 one directory_07
+		elif bin_version >= 8
+			get directory_01 long
+			putarray 01 one directory_01
+			get directory_02 longlong
+			putarray 02 one directory_02
+			get directory_03 longlong
+			putarray 03 one directory_03
+			get directory_04 long
+			putarray 04 one directory_04
+			get directory_05 longlong
+			putarray 05 one directory_05
+			get directory_06 longlong
+			putarray 06 one directory_06
+			get directory_07 longlong
+			putarray 07 one directory_07
+		endif
+	next one
+	for two = 0 < bin_files
+		if bin_version == 2
+			get file_01 long
+			putarray 11 two file_01
+			get file_02 long
+			putarray 12 two file_02
+			get file_03 long
+			putarray 13 two file_03
+			get file_04 longlong
+			putarray 14 two file_04
+			get file_05 longlong
+			putarray 15 two file_05
+			get file_06 longlong
+			putarray 16 two file_06
+			get file_07 long
+			putarray 17 two file_07
+		elif bin_version == 7
+			get file_01 long
+			putarray 11 two file_01
+			get file_02 long
+			putarray 12 two file_02
+			get file_03 longlong
+			putarray 13 two file_03
+			get file_04 long
+			putarray 14 two file_04
+			get file_05 longlong
+			putarray 15 two file_05
+			get file_06 longlong
+			putarray 16 two file_06
+			get file_07 long
+			putarray 17 two file_07
+			get file_08 time64
+			putarray 18 two file_08
+		elif bin_version >= 8
+			get file_01 long
+			putarray 11 two file_01
+			get file_02 longlong
+			putarray 12 two file_02
+			get file_03 long
+			putarray 13 two file_03
+			get file_04 longlong
+			putarray 14 two file_04
+			get file_05 longlong
+			putarray 15 two file_05
+			get file_06 longlong
+			putarray 16 two file_06
+			get file_07 longlong
+			putarray 17 two file_07
+			get file_08 long
+			putarray 18 two file_08
+			get file_09 time64
+			putarray 19 two file_09
+		endif
+	next two
+	for i = 0 < bin_files
+		if bin_version == 2
+			getarray file_01 11 i
+			getarray next_file_number 12 i
+			getarray directory_base_number 13 i
+			getarray file_name_offset 14 i
+			getarray file_offset 15 i
+			getarray file_size 16 i
+			getarray file_07 17 i
+		elif bin_version == 7
+			getarray file_01 11 i
+			getarray next_file_number 12 i
+			getarray directory_base_number 13 i
+			getarray file_name_offset 14 i
+			getarray file_offset 15 i
+			getarray file_size 16 i
+			getarray file_07 17 i
+			getarray file_timestamp 18 i
+		elif bin_version >= 8
+			getarray file_01 11 i
+			getarray next_file_number 12 i
+			getarray directory_base_number 13 i
+			getarray file_04 14 i
+			getarray file_name_offset 15 i
+			getarray file_offset 16 i
+			getarray file_size 17 i
+			getarray file_08 18 i
+			getarray file_timestamp 19 i
+		endif
+		xmath file_name_offset "file_name_offset + bin_name_offset"
+		goto file_name_offset
+		get name string
+		for
+			getarray directory_01 01 directory_base_number
+			getarray directory_02 02 directory_base_number
+			getarray parent_directory_number 03 directory_base_number
+			getarray directory_04 04 directory_base_number
+			getarray directory_name_offset 05 directory_base_number
+			getarray incoming_directory_number 06 directory_base_number
+			getarray file_base_number 07 directory_base_number
+			if bin_version <= 7
+				if directory_name_offset != 0xffffffff
+					xmath directory_name_offset "directory_name_offset + bin_name_offset"
+					goto directory_name_offset
+					get path string
+				else
+					set path string ""
+				endif
+			elif bin_version >= 8
+				if directory_name_offset != 0xffffffffffffffff
+					xmath directory_name_offset "directory_name_offset + bin_name_offset"
+					goto directory_name_offset
+					get path string
+				else
+					set path string ""
+				endif
+			endif
+			string name p "%s\%s" path name
+			if bin_version <= 7
+				if parent_directory_number != 0xffffffff
+					math directory_base_number = parent_directory_number
+				else
+					break
+				endif
+			elif bin_version >= 8
+				if parent_directory_number != 0xffffffffffffffff
+					math directory_base_number = parent_directory_number
+				else
+					break
+				endif
+			endif
+		next
+		set finalname string name
+		log finalname file_offset file_size 1
+	next i
+elif remedy_extension == "packmeta"
+	get packmeta_files_01 long
+	get packmeta_02 long
+	get packmeta_files_02 long
+	get packmeta_name_size long
+	if packmeta_files_01 == packmeta_files_02
+		math packmeta_files == packmeta_files_02
+	endif
+	xmath sixteen "1 << 4"
+	xmath packmeta_first_info_location "packmeta_name_size + sixteen"
+	goto packmeta_first_info_location
+	for i1 = 0 < packmeta_files
+		get name_string_location long
+		savepos packmeta_temporary_position_01
+		math name_string_location + sixteen
+		goto name_string_location
+		get original_file_path string
+		goto packmeta_temporary_position_01
+	next i1
+	get packmeta_engine_relevant_entries long
+	for i2 = 0 < packmeta_engine_relevant_entries
+		get hardcoded_name_hash longlong
+	next i2
+	for i3 = 0 < packmeta_engine_relevant_entries
+		get file_size_in_kilobytes long
+	next i3
+	get packmeta_05 long
+	for i4 = 0 < packmeta_05
+		get packmeta_sub_01 long
+		putarray 11 i4 packmeta_sub_01
+		get packmeta_sub_02 long
+		getdstring packmeta_sub_03 packmeta_sub_02
+		putarray 12 i4 packmeta_sub_03
+		get packmeta_sub_04 long
+		putarray 13 i4 packmeta_sub_04
+	next i4
+	for i5 = 0 < packmeta_05
+		getarray packmeta_sub_entry_name_hash 11 i5
+		getarray packmeta_sub_entry_name_string 12 i5
+		getarray packmeta_sub_entry_entries 13 i5 # sigh
+		for j1 = 0 < packmeta_sub_entry_entries
+			get sbe_01 long
+			get sbe_02 long
+			get sbe_03 long
+			get sbe_04 long
+			get sbe_05 long
+			get sbe_06 long
+			if sbe_05 == 0
+				get sbe_07 long
+			else
+				for k1 = 0 < sbe_05
+					get sbe_08 long
+				next k1
+			endif
+		next j1
+	next i5
+	/*
+	get packmeta_engine_relevant_entries long
+	for i2 = 0 < packmeta_engine_relevant_entries
+		get hardcoded_name_hash long
+	next i2
+	for i3 = 0 < packmeta_engine_relevant_entries
+		get file_size_in_kilobytes long
+	next i3
+	get packmeta_05 long
+	get packmeta_files_03 long
+	get packmeta_files_04 long
+	get packmeta_08 long
+	for i4 = 0 < packmeta_files
+		get packmeta_sub_01 long
+		get packmeta_sub_02 long
+		get packmeta_sub_03 long
+		get packmeta_sub_04 long
+		get packmeta_sub_05 long
+		get packmeta_sub_06 long
+		get packmeta_sub_07 long
+		get packmeta_sub_08 long
+	next i4
+	for i5 = 0 < packmeta_files
+		get packmeta_sub_09 long
+		get packmeta_sub_10 long
+		get packmeta_sub_11 long
+		get packmeta_sub_12 long
+		get packmeta_sub_13 long
+		get packmeta_sub_14 long
+		get packmeta_sub_15 long
+		get packmeta_sub_16 long
+		get packmeta_sub_17 long
+		get packmeta_sub_18 long
+		get packmeta_sub_19 long
+		get packmeta_sub_20 long
+	next i5
+	*/
+elif remedy_extension == "rmdp"
+	print " \n an .rmdp file can't extract itself, silly. "
+	cleanexit
+endif
