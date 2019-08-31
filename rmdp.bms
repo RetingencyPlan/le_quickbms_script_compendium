@@ -3,7 +3,6 @@
 get remedy_extension extension
 open FDDE "rmdp" 1
 
-# needed for... well, anything else really
 math 32bit_minus_one = 0xffffffff
 math 64bit_minus_one = 0xffffffffffffffff
 
@@ -157,7 +156,11 @@ if remedy_extension == "bin"
 		math file_11 + bin_name_offset
 		goto file_11
 		get file_12 string
-		putarray 20 two file_12
+		if bin_version == 2
+			putarray 18 two file_12
+		elif bin_version >= 7
+			putarray 20 two file_12
+		endif
 	next two
 	goto temp_02
 	for d1 = 0 < bin_directories
@@ -197,134 +200,52 @@ if remedy_extension == "bin"
 		putarray 102 d1 full_directory_name
 	next d1
 	for f1 = 0 < bin_files
-		if bin_version == 2
-			getarray file_01 11 f1
-			getarray next_file_number 12 f1
-			getarray directory_base_number 13 f1
-			getarray file_name_offset 14 f1
-			getarray file_offset 15 f1
-			getarray file_size 16 f1
-			getarray file_07 17 f1
-		elif bin_version == 7
-			getarray file_01 11 f1
-			getarray next_file_number 12 f1
-			getarray directory_base_number 13 f1
-			getarray file_04 14 f1
-			getarray file_name_offset 15 f1
-			getarray file_offset 16 f1
-			getarray file_size 17 f1
-			getarray file_08 18 f1
-			getarray file_timestamp 19 f1
-		elif bin_version >= 8
-			getarray file_01 11 f1
-			getarray next_file_number 12 f1
-			getarray directory_base_number 13 f1
-			getarray file_04 14 f1
-			getarray file_name_offset 15 f1
-			getarray file_offset 16 f1
-			getarray file_size 17 f1
-			getarray file_08 18 f1
-			getarray file_timestamp 19 f1
-		endif
+		math current_number = f1
+		callfunction array_listing_of_file_entry_within_sector 1
 		getarray full_directory_name 102 directory_base_number
-		getarray file_name_string 20 f1
 		string full_file_name p "%s\%s" full_directory_name file_name_string
-		log full_file_name file_offset file_size 1
+		#log full_file_name file_offset file_size 1
 	next f1
+elif remedy_extension == "xml"
+	# SOON(TM)
 elif remedy_extension == "packmeta"
-	get packmeta_files_01 long
-	get packmeta_02 long
-	get packmeta_files_02 long
-	get packmeta_name_size long
-	if packmeta_files_01 == packmeta_files_02
-		math packmeta_files == packmeta_files_02
-	endif
-	xmath sixteen "1 << 4"
-	xmath packmeta_first_info_location "packmeta_name_size + sixteen"
-	goto packmeta_first_info_location
-	for i1 = 0 < packmeta_files
-		get name_string_location long
-		savepos packmeta_temporary_position_01
-		math name_string_location + sixteen
-		goto name_string_location
-		get original_file_path string
-		goto packmeta_temporary_position_01
-	next i1
-	get packmeta_engine_relevant_entries long
-	for i2 = 0 < packmeta_engine_relevant_entries
-		get hardcoded_name_hash longlong
-	next i2
-	for i3 = 0 < packmeta_engine_relevant_entries
-		get file_size_in_kilobytes long
-	next i3
-	get packmeta_05 long
-	for i4 = 0 < packmeta_05
-		get packmeta_sub_01 long
-		putarray 11 i4 packmeta_sub_01
-		get packmeta_sub_02 long
-		getdstring packmeta_sub_03 packmeta_sub_02
-		putarray 12 i4 packmeta_sub_03
-		get packmeta_sub_04 long
-		putarray 13 i4 packmeta_sub_04
-	next i4
-	for i5 = 0 < packmeta_05
-		getarray packmeta_sub_entry_name_hash 11 i5
-		getarray packmeta_sub_entry_name_string 12 i5
-		getarray packmeta_sub_entry_entries 13 i5 # sigh
-		for j1 = 0 < packmeta_sub_entry_entries
-			get sbe_01 long
-			get sbe_02 long
-			get sbe_03 long
-			get sbe_04 long
-			get sbe_05 long
-			get sbe_06 long
-			if sbe_05 == 0
-				get sbe_07 long
-			else
-				for k1 = 0 < sbe_05
-					get sbe_08 long
-				next k1
-			endif
-		next j1
-	next i5
-	/*
-	get packmeta_engine_relevant_entries long
-	for i2 = 0 < packmeta_engine_relevant_entries
-		get hardcoded_name_hash long
-	next i2
-	for i3 = 0 < packmeta_engine_relevant_entries
-		get file_size_in_kilobytes long
-	next i3
-	get packmeta_05 long
-	get packmeta_files_03 long
-	get packmeta_files_04 long
-	get packmeta_08 long
-	for i4 = 0 < packmeta_files
-		get packmeta_sub_01 long
-		get packmeta_sub_02 long
-		get packmeta_sub_03 long
-		get packmeta_sub_04 long
-		get packmeta_sub_05 long
-		get packmeta_sub_06 long
-		get packmeta_sub_07 long
-		get packmeta_sub_08 long
-	next i4
-	for i5 = 0 < packmeta_files
-		get packmeta_sub_09 long
-		get packmeta_sub_10 long
-		get packmeta_sub_11 long
-		get packmeta_sub_12 long
-		get packmeta_sub_13 long
-		get packmeta_sub_14 long
-		get packmeta_sub_15 long
-		get packmeta_sub_16 long
-		get packmeta_sub_17 long
-		get packmeta_sub_18 long
-		get packmeta_sub_19 long
-		get packmeta_sub_20 long
-	next i5
-	*/
+	# SOON(TM)
 elif remedy_extension == "rmdp"
-	print " \n an .rmdp file can't extract itself, silly. "
+	print " \n obviously, an .rmdp file cannot extract itself. "
 	cleanexit
 endif
+
+startfunction array_listing_of_directory_entry_within_sector
+	getarray directory_name_hash 01 current_number
+	getarray neighbor_directory_number 02 current_number
+	getarray parent_directory_number 03 current_number
+	getarray directory_04 04 current_number # this one is just dummy leftover data from whatever it is for all i care
+	getarray directory_name_offset 05 current_number
+	getarray incoming_directory_number 06 current_number
+	getarray base_file_number 07 current_number
+	getarray directory_name_string 08 current_number
+endfunction
+
+startfunction array_listing_of_file_entry_within_sector
+	if bin_version == 2
+		getarray file_01 11 current_number
+		getarray next_file_number 12 current_number
+		getarray directory_base_number 13 current_number
+		getarray file_name_offset 14 current_number
+		getarray file_offset 15 current_number
+		getarray file_size 16 current_number
+		getarray file_07 17 current_number
+		getarray file_name_string 18 current_number
+	elif bin_version >= 7
+		getarray file_01 11 current_number
+		getarray next_file_number 12 current_number
+		getarray directory_base_number 13 current_number
+		getarray file_04 14 current_number
+		getarray file_name_offset 15 current_number
+		getarray file_offset 16 current_number
+		getarray file_size 17 current_number
+		getarray file_08 18 current_number
+		getarray file_timestamp 19 current_number
+		getarray file_name_string 20 current_number
+	endif
+endfunction
