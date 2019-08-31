@@ -3,8 +3,11 @@
 get remedy_extension extension
 open FDDE "rmdp" 1
 
+# needed for... well, anything else really
+math 32bit_minus_one = 0xffffffff
+math 64bit_minus_one = 0xffffffffffffffff
+
 if remedy_extension == "bin"
-	# (todo) a re-import feature within the script is being considered
 	get bin_endian_type byte
 	if bin_endian_type == 0
 		endian little
@@ -19,13 +22,28 @@ if remedy_extension == "bin"
 	endif
 	get bin_name_size long
 	getdstring bin_dummy_data 0x80
-	if bin_version == 2
-		xmath bin_name_offset "((bin_directories * 28) + (bin_files * 40)) + 0x91"
-	elif bin_version == 7
-		xmath bin_name_offset "((bin_directories * 28) + (bin_files * 48)) + (0x99 + 0x1c)"
+	if bin_version <= 7
+		math sec_size_per_dir = 28
 	elif bin_version >= 8
-		xmath bin_name_offset "((bin_directories * 48) + (bin_files * 60)) + (0x99 + 0x30)"
+		math sec_size_per_dir = 48
 	endif
+	if bin_version == 2
+		math sec_size_per_file = 40
+	elif bin_version == 7
+		math sec_size_per_file = 48
+	elif bin_version >= 8
+		math sec_size_per_file = 60
+	endif
+	if bin_version == 2
+		math init_bin_hdr_size = 0x91
+	elif bin_version == 7
+		xmath init_bin_hdr_size "0x99 + 0x1c"
+	elif bin_version >= 8
+		xmath init_bin_hdr_size "0x99 + 0x30"
+	endif
+	xmath bin_directory_entries_sector_size "bin_directories * sec_size_per_dir"
+	xmath bin_file_entries_sector_size "bin_files * sec_size_per_file"
+	xmath bin_name_offset "bin_directory_entries_sector_size + bin_file_entries_sector_size + init_bin_hdr_size"
 	for one = 0 < bin_directories
 		if bin_version <= 7
 			get directory_01 long
@@ -59,6 +77,20 @@ if remedy_extension == "bin"
 			putarray 07 one directory_07
 		endif
 	next one
+	savepos temp_01
+	for one = 0 < bin_directories
+		getarray directory_05 05 one
+		if directory_05 == 32bit_minus_one || directory_05 == 64bit_minus_one
+			putarray 08 one ""
+			# alternatively i could've just put in "d:\data" but whatevs
+		else
+			math directory_05 + bin_name_offset
+			goto directory_05
+			get directory_08 string
+			putarray 08 one directory_08
+		endif
+	next one
+	goto temp_01
 	for two = 0 < bin_files
 		if bin_version == 2
 			get file_01 long
@@ -80,18 +112,20 @@ if remedy_extension == "bin"
 			putarray 11 two file_01
 			get file_02 long
 			putarray 12 two file_02
-			get file_03 longlong
+			get file_03 long
 			putarray 13 two file_03
 			get file_04 long
 			putarray 14 two file_04
-			get file_05 longlong
+			get file_05 long
 			putarray 15 two file_05
 			get file_06 longlong
 			putarray 16 two file_06
-			get file_07 long
+			get file_07 longlong
 			putarray 17 two file_07
-			get file_08 time64
+			get file_08 long
 			putarray 18 two file_08
+			get file_09 time64
+			putarray 19 two file_09
 		elif bin_version >= 8
 			get file_01 long
 			putarray 11 two file_01
@@ -113,81 +147,90 @@ if remedy_extension == "bin"
 			putarray 19 two file_09
 		endif
 	next two
-	for i = 0 < bin_files
+	savepos temp_02
+	for two = 0 < bin_files
 		if bin_version == 2
-			getarray file_01 11 i
-			getarray next_file_number 12 i
-			getarray directory_base_number 13 i
-			getarray file_name_offset 14 i
-			getarray file_offset 15 i
-			getarray file_size 16 i
-			getarray file_07 17 i
-		elif bin_version == 7
-			getarray file_01 11 i
-			getarray next_file_number 12 i
-			getarray directory_base_number 13 i
-			getarray file_name_offset 14 i
-			getarray file_offset 15 i
-			getarray file_size 16 i
-			getarray file_07 17 i
-			getarray file_timestamp 18 i
-		elif bin_version >= 8
-			getarray file_01 11 i
-			getarray next_file_number 12 i
-			getarray directory_base_number 13 i
-			getarray file_04 14 i
-			getarray file_name_offset 15 i
-			getarray file_offset 16 i
-			getarray file_size 17 i
-			getarray file_08 18 i
-			getarray file_timestamp 19 i
+			getarray file_11 14 two
+		elif bin_version >= 7
+			getarray file_11 15 two
 		endif
-		xmath file_name_offset "file_name_offset + bin_name_offset"
-		goto file_name_offset
-		get name string
-		for
-			getarray directory_01 01 directory_base_number
-			getarray directory_02 02 directory_base_number
-			getarray parent_directory_number 03 directory_base_number
-			getarray directory_04 04 directory_base_number
-			getarray directory_name_offset 05 directory_base_number
-			getarray incoming_directory_number 06 directory_base_number
-			getarray file_base_number 07 directory_base_number
-			if bin_version <= 7
-				if directory_name_offset != 0xffffffff
-					xmath directory_name_offset "directory_name_offset + bin_name_offset"
-					goto directory_name_offset
-					get path string
-				else
-					set path string ""
+		math file_11 + bin_name_offset
+		goto file_11
+		get file_12 string
+		putarray 20 two file_12
+	next two
+	goto temp_02
+	for d1 = 0 < bin_directories
+		math current_number = d1
+		math current_string_index = 0
+		callfunction array_listing_of_directory_entry_within_sector 1
+		putarray 101 current_string_index directory_name_string
+		if parent_directory_number != 32bit_minus_one && parent_directory_number != 64bit_minus_one
+			for
+				math current_string_index + 1
+				math current_number = parent_directory_number
+				callfunction array_listing_of_directory_entry_within_sector 1
+				putarray 101 current_string_index directory_name_string
+				if parent_directory_number == 32bit_minus_one || parent_directory_number == 64bit_minus_one
+					break
 				endif
-			elif bin_version >= 8
-				if directory_name_offset != 0xffffffffffffffff
-					xmath directory_name_offset "directory_name_offset + bin_name_offset"
-					goto directory_name_offset
-					get path string
-				else
-					set path string ""
+			next
+			math last_string_index = current_string_index
+			math reordered_string_index = 0
+			set full_directory_name string ""
+			for
+				getarray current_string_key 101 last_string_index
+				if reordered_string_index >= 2
+					string full_directory_name + "\"
 				endif
-			endif
-			string name p "%s\%s" path name
-			if bin_version <= 7
-				if parent_directory_number != 0xffffffff
-					math directory_base_number = parent_directory_number
+				string full_directory_name + current_string_key
+				if last_string_index != 0
+					math last_string_index - 1
+					math reordered_string_index + 1
 				else
 					break
 				endif
-			elif bin_version >= 8
-				if parent_directory_number != 0xffffffffffffffff
-					math directory_base_number = parent_directory_number
-				else
-					break
-				endif
-			endif
-		next
-		set finalname string name
-		log finalname file_offset file_size 1
-	next i
+			next
+		else
+			set full_directory_name string ""
+		endif
+		putarray 102 d1 full_directory_name
+	next d1
+	for f1 = 0 < bin_files
+		if bin_version == 2
+			getarray file_01 11 f1
+			getarray next_file_number 12 f1
+			getarray directory_base_number 13 f1
+			getarray file_name_offset 14 f1
+			getarray file_offset 15 f1
+			getarray file_size 16 f1
+			getarray file_07 17 f1
+		elif bin_version == 7
+			getarray file_01 11 f1
+			getarray next_file_number 12 f1
+			getarray directory_base_number 13 f1
+			getarray file_04 14 f1
+			getarray file_name_offset 15 f1
+			getarray file_offset 16 f1
+			getarray file_size 17 f1
+			getarray file_08 18 f1
+			getarray file_timestamp 19 f1
+		elif bin_version >= 8
+			getarray file_01 11 f1
+			getarray next_file_number 12 f1
+			getarray directory_base_number 13 f1
+			getarray file_04 14 f1
+			getarray file_name_offset 15 f1
+			getarray file_offset 16 f1
+			getarray file_size 17 f1
+			getarray file_08 18 f1
+			getarray file_timestamp 19 f1
+		endif
+		getarray full_directory_name 102 directory_base_number
+		getarray file_name_string 20 f1
+		string full_file_name p "%s\%s" full_directory_name file_name_string
+		log full_file_name file_offset file_size 1
+	next f1
 elif remedy_extension == "packmeta"
 	get packmeta_files_01 long
 	get packmeta_02 long
