@@ -48,8 +48,26 @@ else
 			log file_name file_offset file_size 2
 		next i
 	elif bouncer_extension == "bin"
-		getdstring SIGN4 4
-		if SIGN4 != "IZ01"
+		get is_iz01 long
+		if is_iz01 == 0x31305a49 # IZ01
+			get iz01_02 long
+			if iz01_02 != 0
+				cleanexit
+			endif
+			get iz01_03 long
+			if iz01_03 != 0x72657375
+				cleanexit
+			endif
+			get iz01_04 long
+			if iz01_04 != 0
+				cleanexit
+			endif
+			get iz01_05 long
+			if iz01_05 != 1
+				cleanexit
+			endif
+			get original_size long
+		else
 			goto 0
 			callfunction PARSE_BIN_1 1
 		endif
