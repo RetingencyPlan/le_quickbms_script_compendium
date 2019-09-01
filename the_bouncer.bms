@@ -7,9 +7,7 @@
 # v5 by AnonBaiter (massive re-write around here)
 
 get bouncer_filename filename
-get ARCHIVE_ONAME basename
-get bouncer_ext extension
-get ARCHIVE_FSIZE asize
+get bouncer_extension extension
 
 math 32bit_minus_one = 0xffffffff
 
@@ -22,7 +20,7 @@ elif bouncer_filename == "bgmwddat.bin" || bouncer_filename == "bgmwdtbl.dat"
 elif bouncer_filename == "sdwddat.bin" || bouncer_filename == "sdwdtbl.bin"
 	callfunction PARSE_BIN_3 1
 else
-	if bouncer_ext == "tbl" || bouncer_ext == "nam" || bouncer_ext == "dat"
+	if bouncer_extension == "tbl" || bouncer_extension == "nam" || bouncer_extension == "dat"
 		open FDDE "tbl" 0
 		open FDDE "nam" 1
 		open FDDE "dat" 2
@@ -49,7 +47,7 @@ else
 			getarray file_name 5 i
 			log file_name file_offset file_size 2
 		next i
-	elif bouncer_ext == "bin"
+	elif bouncer_extension == "bin"
 		getdstring SIGN4 4
 		if SIGN4 != "IZ01"
 			goto 0
@@ -103,17 +101,6 @@ startfunction PARSE_BIN_1
 		getarray aid_02 0 i
 		math i - 1
 		xmath file_size "(aid_02 - aid_01) << 11"
-		xmath aid_03 "(aid_01 << 11) + (file_size - 1)"
-		for j = 0 < 2048
-			goto aid_03
-			get resting_byte byte
-			if resting_byte == 0xff
-				math file_size - 1
-				math aid_03 - 1
-			else
-				break
-			endif
-		next j
 		putarray 4 i file_size
 	next i
 	for i = 0 < bin_files
