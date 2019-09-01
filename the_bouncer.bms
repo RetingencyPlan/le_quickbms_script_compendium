@@ -106,7 +106,9 @@ startfunction PARSE_BIN_1
 	for i = 0 < bin_files
 		getarray file_offset 0 i
 		math file_offset << 11
-		getarray iz01_decompressed_size 1 i
+		if bouncer_filename == "BOUNCER.bin"
+			getarray iz01_decompressed_size 1 i
+		endif
 		getarray file_name 3 i
 		getarray file_size 4 i
 		log file_name file_offset file_size
