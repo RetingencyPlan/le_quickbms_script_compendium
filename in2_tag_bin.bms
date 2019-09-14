@@ -1,0 +1,24 @@
+# Quiz and Variety Suku Suku Inufuku 2 (IN2 Ver. A) - DATA[.TAG/.BIN]
+
+open FDDE "tag" 0
+open FDDE "bin" 1
+
+get TAG_SIZE asize
+idstring "****TAG_DATA****"
+do
+	get TAG_INFO_ENTRIES long
+	get TAG_INFO_OFF long
+	savepos TAG_OFF1
+	if TAG_INFO_OFF != 0
+		goto TAG_INFO_OFF
+		for i = 0 < TAG_INFO_ENTRIES
+			getdstring TAG_FNAME 0x10
+			get TAG_02 long
+			get TAG_FOFFSET long
+			get TAG_FSIZE1 long
+			get TAG_FSIZE2 long
+			log TAG_FNAME TAG_FOFFSET TAG_FSIZE1 1
+		next i
+	endif
+	goto TAG_OFF1
+while TAG_OFF1 < 0x410 # (max number + 0x10)
