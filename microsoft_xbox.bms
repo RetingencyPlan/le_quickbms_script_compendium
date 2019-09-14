@@ -1,0 +1,241 @@
+math temp = 1
+math temp * 16
+if temp = 0
+	print " this script was designed for clean Xbox DVD dumps that weight at about 7.28GB max. \n just use quickbms_4gb_files.exe "
+	cleanexit
+endif
+
+get dvd_size asize
+if dvd_size != 0x1d26a8000
+	print " this script was designed for Redump releases of Xbox discs. \n sorry about that. "
+	cleanexit
+endif
+
+math xbox_file_system_base_number = 0x30600
+xmath goto_01 "(xbox_file_system_base_number + 0x20) << 11"
+goto goto_01
+for i = 0 < 2
+	getdstring mxm_01 0x14
+	if mxm_01 != "MICROSOFT*XBOX*MEDIA"
+		cleanexit
+	endif
+	if i = 0
+		get first_directory_sector long
+		get first_directory_size long
+		get timecode time64
+		getdstring dummy_data 0x7c8
+	elif i = 1
+		getdstring command 0x20
+		get info_related_to_command_01 long
+		get info_related_to_command_02 long
+		get info_related_to_command_03 long
+		get info_related_to_command_04 long
+	endif
+next i
+xmath goto_02 "(first_directory_sector + xbox_file_system_base_number) << 11"
+math current_directory_info_offset = goto_02
+math current_directory_size = first_directory_size
+math overall_directory_entry = 0
+math directory_number = 0
+math current_directory_to_process = 0
+math future_directory_to_process = 0
+math directory_entry_to_fetch_from = 0
+math previous_directory_entry_number = 0
+math next_directory_entry_to_parse = 0
+math parsing_directory_entry = 0
+math next_parsing_directory_entry = 0
+math final_directory_entries = 0
+set directory_name string ""
+for j = 0 <= 256
+	putarray 101 j 0
+	putarray 102 j 0
+	putarray 103 j 0
+	putarray 104 j 0
+	putarray 105 j 0
+	putarray 106 j 0
+	putarray 107 j 0
+	putarray 108 j 0
+	putarray 109 j ""
+next j
+callfunction parse_mxm 1
+
+startfunction parse_mxm
+	goto current_directory_info_offset
+	math current_directory_entry = 0
+	for i2 = 0
+		putarray 0 0 current_directory_entry
+		if i2 >= current_directory_size
+			break
+		endif
+		if i2 = 0
+			math directory_entry_to_fetch_from = overall_directory_entry
+			/*
+			for directory_number = current_directory_to_process < 256
+				putarray 101 directory_number current_directory_info_offset
+				putarray 102 directory_number current_directory_size
+				putarray 103 directory_number final_directory_entries
+				putarray 104 directory_number directory_entry_to_fetch_from
+				putarray 105 directory_number previous_directory_entry_number
+				putarray 106 directory_number future_directory_to_process
+				putarray 107 directory_number next_directory_entry_to_parse
+				putarray 108 directory_number next_parsing_directory_entry
+				putarray 109 directory_number directory_name
+				math directory_number + 1
+				getarray next_something 101 directory_number
+				math directory_number - 1
+				if next_something == 0
+					break
+				endif
+			next directory_number
+			*/
+		endif
+		get d1 short
+		if d1 == 0xffff
+			break
+		endif
+		putarray 1 overall_directory_entry d1
+		get d2 short
+		putarray 2 overall_directory_entry d2
+		get d3 long
+		putarray 3 overall_directory_entry d3
+		get d4 long
+		putarray 4 overall_directory_entry d4
+		get d5 byte
+		xmath flag_01 "d5 & 1"
+		putarray 5 overall_directory_entry flag_01
+		xmath flag_02 "(d5 >> 1) & 1"
+		putarray 6 overall_directory_entry flag_02
+		xmath flag_03 "(d5 >> 2) & 1"
+		putarray 7 overall_directory_entry flag_03
+		xmath flag_04 "(d5 >> 3) & 1"
+		putarray 8 overall_directory_entry flag_04
+		xmath flag_05 "(d5 >> 4) & 1"
+		putarray 9 overall_directory_entry flag_05
+		xmath flag_06 "(d5 >> 5) & 1"
+		putarray 10 overall_directory_entry flag_06
+		xmath flag_07 "(d5 >> 6) & 1"
+		putarray 11 overall_directory_entry flag_07
+		xmath flag_08 "(d5 >> 7) & 1"
+		putarray 12 overall_directory_entry flag_08
+		get d6 byte
+		getdstring dn d6
+		putarray 13 overall_directory_entry dn
+		math i2 + 14
+		math i2 + d6
+		for jk = 0
+			get padding byte
+			if padding != 0xff
+				goto -1 0 SEEK_CUR
+				break
+			else
+				math i2 + 1
+			endif
+		next jk
+		math current_directory_entry + 1
+		math overall_directory_entry + 1
+	next
+	math final_directory_entries = current_directory_entry
+	putarray 103 directory_number final_directory_entries
+	for i3 = parsing_directory_entry < final_directory_entries
+		xmath last_entry "final_directory_entries - 1"
+		/*
+		if i3 = 0
+			for directory_number = current_directory_to_process < 256
+				getarray current_directory_info_offset 101 directory_number
+				getarray current_directory_size 102 directory_number
+				getarray final_directory_entries 103 directory_number
+				getarray directory_entry_to_fetch_from 104 directory_number
+				getarray previous_directory_entry_number 105 directory_number
+				getarray future_directory_to_process 106 directory_number
+				getarray next_directory_entry_to_parse 107 directory_number
+				getarray next_parsing_directory_entry 108 directory_number
+				getarray directory_name 109 directory_number
+				math directory_number + 1
+				getarray next_something 101 directory_number
+				math directory_number - 1
+				if next_something == 0
+					break
+				endif
+			next directory_number
+		endif
+		*/
+		getarray previous_entry_offset 1 directory_entry_to_fetch_from
+		getarray next_entry_offset 2 directory_entry_to_fetch_from
+		getarray entry_offset 3 directory_entry_to_fetch_from
+		getarray entry_size 4 directory_entry_to_fetch_from
+		getarray is_read_only 5 directory_entry_to_fetch_from
+		getarray is_hidden 6 directory_entry_to_fetch_from
+		getarray is_system_file 7 directory_entry_to_fetch_from
+		getarray unknown_flag_05 8 directory_entry_to_fetch_from
+		getarray is_directory 9 directory_entry_to_fetch_from
+		getarray is_archive 10 directory_entry_to_fetch_from
+		getarray unknown_flag_07 11 directory_entry_to_fetch_from
+		getarray is_its_own_thing 12 directory_entry_to_fetch_from
+		getarray entry_name 13 directory_entry_to_fetch_from
+		math directory_entry_to_fetch_from + 1
+		if is_directory = 1
+			math directory_number + 1
+			math previous_directory_entry_number = directory_entry_to_fetch_from
+			math current_directory_size = entry_size
+			xmath current_directory_info_offset "(entry_offset + xbox_file_system_base_number) << 11"
+			putarray 101 directory_number current_directory_info_offset
+			putarray 102 directory_number current_directory_size
+			putarray 105 directory_number previous_directory_entry_number
+			xmath future_directory_to_process "current_directory_to_process + 1"
+			putarray 106 directory_number future_directory_to_process
+			math next_directory_entry_to_parse = directory_entry_to_fetch_from
+			putarray 107 directory_number next_directory_entry_to_parse
+			math next_parsing_directory_entry = i3
+			putarray 108 directory_number next_parsing_directory_entry
+			math parsing_directory_entry = 0
+			putarray 109 directory_number entry_name
+			math current_directory_to_process + 1
+			callfunction parse_mxm 1
+		else
+			xmath file_offset "(entry_offset + xbox_file_system_base_number) << 11"
+			math file_size = entry_size
+			set file_name string ""
+			math name_number = 0
+			for
+				getarray previous_entry_name 109 name_number
+				string file_name + previous_entry_name
+				if previous_entry_name == ""
+					if name_number != 0
+						string file_name + entry_name
+						break
+					endif
+				else
+					if name_number != 0
+						string file_name + "\"
+					endif
+				endif
+				math name_number + 1
+			next
+			log file_name file_offset file_size
+		endif
+		if i3 == last_entry || final_directory_entries = 0 || i3 == final_directory_entries
+			if directory_number != 0
+				getarray parsing_directory_entry 108 directory_number
+				getarray directory_entry_to_fetch_from 107 directory_number
+				getarray final_directory_entries 103 directory_number
+				math directory_number - 1
+				getarray final_directory_entries 103 directory_number
+				math current_directory_to_process - 1
+				if final_directory_entries != 0
+					math i3 = parsing_directory_entry
+				endif
+				math directory_number + 1
+				putarray 101 directory_number 0
+				putarray 102 directory_number 0
+				putarray 103 directory_number 0
+				putarray 104 directory_number 0
+				putarray 105 directory_number 0
+				putarray 106 directory_number 0
+				putarray 107 directory_number 0
+				putarray 108 directory_number 0
+				putarray 109 directory_number ""
+				math directory_number - 1
+			endif
+		endif
+	next i3
+endfunction
