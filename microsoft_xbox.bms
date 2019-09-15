@@ -63,10 +63,7 @@ startfunction parse_mxm
 	goto current_directory_info_offset
 	math current_directory_entry = 0
 	for i2 = 0
-		putarray 0 0 current_directory_entry
-		if i2 >= current_directory_size
-			break
-		endif
+		callfunction mxm_helper_01 1
 		if i2 = 0
 			math directory_entry_to_fetch_from = overall_directory_entry
 			/*
@@ -90,47 +87,60 @@ startfunction parse_mxm
 			*/
 		endif
 		get d1 short
+		get d2 short
 		if d1 == 0xffff
+		if d2 == 0xffff
 			break
 		endif
-		putarray 1 overall_directory_entry d1
-		get d2 short
-		putarray 2 overall_directory_entry d2
+		endif
 		get d3 long
-		putarray 3 overall_directory_entry d3
 		get d4 long
-		putarray 4 overall_directory_entry d4
 		get d5 byte
 		xmath flag_01 "d5 & 1"
-		putarray 5 overall_directory_entry flag_01
 		xmath flag_02 "(d5 >> 1) & 1"
-		putarray 6 overall_directory_entry flag_02
 		xmath flag_03 "(d5 >> 2) & 1"
-		putarray 7 overall_directory_entry flag_03
 		xmath flag_04 "(d5 >> 3) & 1"
-		putarray 8 overall_directory_entry flag_04
 		xmath flag_05 "(d5 >> 4) & 1"
-		putarray 9 overall_directory_entry flag_05
 		xmath flag_06 "(d5 >> 5) & 1"
-		putarray 10 overall_directory_entry flag_06
 		xmath flag_07 "(d5 >> 6) & 1"
-		putarray 11 overall_directory_entry flag_07
 		xmath flag_08 "(d5 >> 7) & 1"
-		putarray 12 overall_directory_entry flag_08
 		get d6 byte
-		getdstring dn d6
-		putarray 13 overall_directory_entry dn
-		math i2 + 14
-		math i2 + d6
-		for jk = 0
-			get padding byte
-			if padding != 0xff
-				goto -1 0 SEEK_CUR
-				break
-			else
-				math i2 + 1
+		xmath pad "d6 % 4"
+		callfunction mxm_helper_01 1
+		if d6 != 0
+			if d6 <= 6
+				math d7 = 6
+			elif d6 <= 10
+				math d7 = 10
+			elif d6 <= 14
+				math d7 = 14
+			elif d6 <= 18
+				math d7 = 18
+			elif d6 <= 22
+				math d7 = 22
+			elif d6 <= 26
+				math d7 = 26
+			elif d6 <= 30
+				math d7 = 30
 			endif
-		next jk
+			getdstring dn d6
+			xmath d8 "d7 - d6"
+			getdstring dp d8
+			callfunction mxm_helper_01 1
+		endif
+		putarray 1 overall_directory_entry d1
+		putarray 2 overall_directory_entry d2
+		putarray 3 overall_directory_entry d3
+		putarray 4 overall_directory_entry d4
+		putarray 5 overall_directory_entry flag_01
+		putarray 6 overall_directory_entry flag_02
+		putarray 7 overall_directory_entry flag_03
+		putarray 8 overall_directory_entry flag_04
+		putarray 9 overall_directory_entry flag_05
+		putarray 10 overall_directory_entry flag_06
+		putarray 11 overall_directory_entry flag_07
+		putarray 12 overall_directory_entry flag_08
+		putarray 13 overall_directory_entry dn
 		math current_directory_entry + 1
 		math overall_directory_entry + 1
 	next
@@ -238,4 +248,12 @@ startfunction parse_mxm
 			endif
 		endif
 	next i3
+endfunction
+
+startfunction mxm_helper_01
+	savepos p1
+	xmath i2 "p1 - current_directory_info_offset"
+	if i2 >= current_directory_size
+		break
+	endif
 endfunction
