@@ -34,7 +34,12 @@ for i = 0 < 2
 next i
 xmath goto_02 "(first_directory_sector + xbox_file_system_base_number) << 11"
 math current_directory_info_offset = goto_02
-math current_directory_size = first_directory_size
+xmath modulus_test "first_directory_size % (1 << 11)"
+if modulus_test = 0
+	math current_directory_size = first_directory_size
+else
+	xmath current_directory_size "((first_directory_size >> 11) + 1) << 11"
+endif
 math overall_directory_entry = 0
 math directory_number = 0
 math current_directory_to_process = 0
@@ -105,10 +110,11 @@ startfunction parse_mxm
 		xmath flag_07 "(d5 >> 6) & 1"
 		xmath flag_08 "(d5 >> 7) & 1"
 		get d6 byte
-		xmath pad "d6 % 4"
 		callfunction mxm_helper_01 1
 		if d6 != 0
-			if d6 <= 6
+			if d6 <= 2
+				math d7 = 2		
+			elif d6 <= 6
 				math d7 = 6
 			elif d6 <= 10
 				math d7 = 10
@@ -122,6 +128,10 @@ startfunction parse_mxm
 				math d7 = 26
 			elif d6 <= 30
 				math d7 = 30
+			elif d6 <= 34
+				math d7 = 34
+			elif d6 <= 38
+				math d7 = 38
 			endif
 			getdstring dn d6
 			xmath d8 "d7 - d6"
