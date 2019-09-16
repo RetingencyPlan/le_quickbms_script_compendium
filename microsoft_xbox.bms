@@ -68,117 +68,81 @@ startfunction parse_mxm
 	goto current_directory_info_offset
 	math current_directory_entry = 0
 	for i2 = 0
+		math dont_put_this_into_array = 0
 		callfunction mxm_helper_01 1
 		if i2 = 0
 			math directory_entry_to_fetch_from = overall_directory_entry
-			/*
-			for directory_number = current_directory_to_process < 256
-				putarray 101 directory_number current_directory_info_offset
-				putarray 102 directory_number current_directory_size
-				putarray 103 directory_number final_directory_entries
-				putarray 104 directory_number directory_entry_to_fetch_from
-				putarray 105 directory_number previous_directory_entry_number
-				putarray 106 directory_number future_directory_to_process
-				putarray 107 directory_number next_directory_entry_to_parse
-				putarray 108 directory_number next_parsing_directory_entry
-				putarray 109 directory_number directory_name
-				math directory_number + 1
-				getarray next_something 101 directory_number
-				math directory_number - 1
-				if next_something == 0
-					break
-				endif
-			next directory_number
-			*/
 		endif
 		get d1 short
 		get d2 short
 		if d1 == 0xffff
 		if d2 == 0xffff
-			break
+			math dont_put_this_into_array = 1
 		endif
 		endif
-		get d3 long
-		get d4 long
-		get d5 byte
-		xmath flag_01 "d5 & 1"
-		xmath flag_02 "(d5 >> 1) & 1"
-		xmath flag_03 "(d5 >> 2) & 1"
-		xmath flag_04 "(d5 >> 3) & 1"
-		xmath flag_05 "(d5 >> 4) & 1"
-		xmath flag_06 "(d5 >> 5) & 1"
-		xmath flag_07 "(d5 >> 6) & 1"
-		xmath flag_08 "(d5 >> 7) & 1"
-		get d6 byte
 		callfunction mxm_helper_01 1
-		if d6 != 0
-			if d6 <= 2
-				math d7 = 2		
-			elif d6 <= 6
-				math d7 = 6
-			elif d6 <= 10
-				math d7 = 10
-			elif d6 <= 14
-				math d7 = 14
-			elif d6 <= 18
-				math d7 = 18
-			elif d6 <= 22
-				math d7 = 22
-			elif d6 <= 26
-				math d7 = 26
-			elif d6 <= 30
-				math d7 = 30
-			elif d6 <= 34
-				math d7 = 34
-			elif d6 <= 38
-				math d7 = 38
-			endif
-			getdstring dn d6
-			xmath d8 "d7 - d6"
-			getdstring dp d8
+		if dont_put_this_into_array = 0
+			get d3 long
+			get d4 long
+			get d5 byte
+			xmath flag_01 "d5 & 1"
+			xmath flag_02 "(d5 >> 1) & 1"
+			xmath flag_03 "(d5 >> 2) & 1"
+			xmath flag_04 "(d5 >> 3) & 1"
+			xmath flag_05 "(d5 >> 4) & 1"
+			xmath flag_06 "(d5 >> 5) & 1"
+			xmath flag_07 "(d5 >> 6) & 1"
+			xmath flag_08 "(d5 >> 7) & 1"
+			get d6 byte
 			callfunction mxm_helper_01 1
+			if d6 != 0
+				if d6 <= 2
+					math d7 = 2		
+				elif d6 <= 6
+					math d7 = 6
+				elif d6 <= 10
+					math d7 = 10
+				elif d6 <= 14
+					math d7 = 14
+				elif d6 <= 18
+					math d7 = 18
+				elif d6 <= 22
+					math d7 = 22
+				elif d6 <= 26
+					math d7 = 26
+				elif d6 <= 30
+					math d7 = 30
+				elif d6 <= 34
+					math d7 = 34
+				elif d6 <= 38
+					math d7 = 38
+				endif
+				getdstring dn d6
+				xmath d8 "d7 - d6"
+				getdstring dp d8
+				callfunction mxm_helper_01 1
+			endif
+			putarray 1 overall_directory_entry d1
+			putarray 2 overall_directory_entry d2
+			putarray 3 overall_directory_entry d3
+			putarray 4 overall_directory_entry d4
+			putarray 5 overall_directory_entry flag_01
+			putarray 6 overall_directory_entry flag_02
+			putarray 7 overall_directory_entry flag_03
+			putarray 8 overall_directory_entry flag_04
+			putarray 9 overall_directory_entry flag_05
+			putarray 10 overall_directory_entry flag_06
+			putarray 11 overall_directory_entry flag_07
+			putarray 12 overall_directory_entry flag_08
+			putarray 13 overall_directory_entry dn
+			math current_directory_entry + 1
+			math overall_directory_entry + 1
 		endif
-		putarray 1 overall_directory_entry d1
-		putarray 2 overall_directory_entry d2
-		putarray 3 overall_directory_entry d3
-		putarray 4 overall_directory_entry d4
-		putarray 5 overall_directory_entry flag_01
-		putarray 6 overall_directory_entry flag_02
-		putarray 7 overall_directory_entry flag_03
-		putarray 8 overall_directory_entry flag_04
-		putarray 9 overall_directory_entry flag_05
-		putarray 10 overall_directory_entry flag_06
-		putarray 11 overall_directory_entry flag_07
-		putarray 12 overall_directory_entry flag_08
-		putarray 13 overall_directory_entry dn
-		math current_directory_entry + 1
-		math overall_directory_entry + 1
 	next
 	math final_directory_entries = current_directory_entry
 	putarray 103 directory_number final_directory_entries
 	for i3 = parsing_directory_entry < final_directory_entries
 		xmath last_entry "final_directory_entries - 1"
-		/*
-		if i3 = 0
-			for directory_number = current_directory_to_process < 256
-				getarray current_directory_info_offset 101 directory_number
-				getarray current_directory_size 102 directory_number
-				getarray final_directory_entries 103 directory_number
-				getarray directory_entry_to_fetch_from 104 directory_number
-				getarray previous_directory_entry_number 105 directory_number
-				getarray future_directory_to_process 106 directory_number
-				getarray next_directory_entry_to_parse 107 directory_number
-				getarray next_parsing_directory_entry 108 directory_number
-				getarray directory_name 109 directory_number
-				math directory_number + 1
-				getarray next_something 101 directory_number
-				math directory_number - 1
-				if next_something == 0
-					break
-				endif
-			next directory_number
-		endif
-		*/
 		getarray previous_entry_offset 1 directory_entry_to_fetch_from
 		getarray next_entry_offset 2 directory_entry_to_fetch_from
 		getarray entry_offset 3 directory_entry_to_fetch_from
