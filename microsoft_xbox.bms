@@ -74,14 +74,19 @@ startfunction parse_mxm
 			math directory_entry_to_fetch_from = overall_directory_entry
 		endif
 		get d1 short
+		if d1 == 0xffff
+			math dont_put_this_into_array = 1
+		else
+			math dont_put_this_into_array = 0
+		endif
 		callfunction mxm_helper_01 1
 		get d2 short
-		callfunction mxm_helper_01 1
-		if d1 == 0xffff
 		if d2 == 0xffff
 			math dont_put_this_into_array = 1
+		else
+			math dont_put_this_into_array = 0
 		endif
-		endif
+		callfunction mxm_helper_01 1
 		if dont_put_this_into_array = 0
 			get d3 long
 			get d4 long
