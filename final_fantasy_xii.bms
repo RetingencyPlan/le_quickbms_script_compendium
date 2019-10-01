@@ -1,0 +1,139 @@
+# Final Fantasy XII (PS2)
+
+goto 0xba000
+
+xmath base_sec_offset "0x174 << 11"
+get sec_sign long
+xmath is_sec "((sec_sign & 0xff) << 16) | (((sec_sign & 0xff00) >> 8) << 8) | ((sec_sign & 0xff0000) >> 16)"
+if is_sec != 0x736563
+	cleanexit
+endif
+xmath sec_version "(sec_sign & 0xff000000) >> 24"
+get sec_entries short
+get sec_name string
+if sec_version = 0x67
+	get secg_01 long
+endif
+for i = 0 <= sec_entries
+	get loc_01 long
+	putarray 1 i loc_01
+	get loc_02 long
+	putarray 2 i loc_02
+	get fil_01 short
+	putarray 3 i fil_01
+next i
+getarray last_file_offset_location_per_entry 2 0
+
+sortarray 1 1
+
+math base_file_offset = 0x1f4
+math tentative_offset_01 = 0
+for i = 0 <= sec_entries
+	getarray file_offset_location_per_entry 1 i
+	if file_offset_location_per_entry != 0
+		math i + 1
+		if i == 0x25
+			math next_file_offset_location_per_entry = last_file_offset_location_per_entry
+		else
+			getarray next_file_offset_location_per_entry 1 i
+		endif
+		math i - 1
+		xmath file_offset_entries "(next_file_offset_location_per_entry - file_offset_location_per_entry) / 3"
+		math file_offset_location_per_entry + base_sec_offset
+		for j1 = 0 < file_offset_entries
+			goto file_offset_location_per_entry
+			math tb4 = 0
+			for tb1 = 0 < 3
+				get tb2 byte
+				xmath tb3 "tb1 * 8"
+				xmath tb4 "tb4 | tb2 << tb3"
+			next tb1
+			putarray 11 j1 tb4
+			math file_offset_location_per_entry + 3
+		next j1
+	endif
+	getarray file_size_location_per_entry 2 i
+	math file_size_location_per_entry + base_sec_offset
+	getarray total_number_of_files_per_entry 3 i
+	if file_size_location_per_entry != 0
+		goto file_size_location_per_entry
+		for j2 = 0 < total_number_of_files_per_entry
+			get c3e long
+			putarray 12 j2 c3e
+		next j2
+	endif
+	if total_number_of_files_per_entry != 0
+		math k2 = 0
+		math add_01 = 0
+		for j = 0 < total_number_of_files_per_entry
+			xmath is "i + 1"
+			xmath js "j + 1"
+			string temp_name p "%s/%04d/%04d." sec_name is js
+			getarray file_size 12 j
+			xmath normal_file_size "(file_size >> 2) & 0x3fffffff"
+			xmath ashe_compressed_file_size "(file_size >> 1) & 0x7ff"
+			xmath ashe_original_file_size "(file_size >> 8) & 0xffffff"
+			for k1 = k2 < file_offset_entries
+				getarray file_offset 11 k1
+				xmath normal_file_offset "(file_offset >> 2) & 0x3fffff"
+				if j = 0
+					if k1 = 0
+						math tentative_offset_01 = normal_file_offset
+					endif
+				endif
+				if normal_file_size != 0x3fffffff
+					if normal_file_offset == tentative_offset_01
+						math k4 = k1
+						xmath k5 "k4 + 1"
+						for k3 = k4 < k5
+							if k3 == file_offset_entries
+								break
+							endif
+							getarray next_file_offset 11 k3
+							math next_file_offset >> 2
+							math next_file_offset & 0x3fffff
+							if next_file_offset == normal_file_offset
+								math k3 + 1
+								math k5 + 1
+							else
+								math k4 = k2
+								break
+							endif
+						next k5
+					else
+						math k2 = k1
+						break
+					endif
+				else
+					math k2 = k1
+					break
+				endif
+			next k1
+			xmath real_file_offset "(tentative_offset_01 << 11) + (base_file_offset << 11)"
+			goto real_file_offset
+			get is_ashe long
+			if normal_file_size != 0x3fffffff
+				if is_ashe == 0x65687361
+					get ashe_01 long
+					get ashe_02 long
+					get ashe_03 long
+					xmath temp_size "ashe_compressed_file_size << 11"
+					log temp_name real_file_offset temp_size
+					math add_01 = ashe_compressed_file_size
+				else
+					log temp_name real_file_offset normal_file_size
+					xmath modulus_01 "normal_file_size % (1 << 11)"
+					if modulus_01 = 0
+						xmath add_01 "normal_file_size >> 11"
+					else
+						xmath add_01 "(normal_file_size >> 11) + 1"
+					endif
+				endif
+			else
+				math add_01 = 0
+			endif
+			math tentative_offset_01 + add_01
+			math file_size_location_per_entry + 4
+		next j
+	endif
+next i
