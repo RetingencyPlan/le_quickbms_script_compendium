@@ -6,103 +6,103 @@ get polyphony_archivextension extension
 
 if polyphony_archivename == "GT2"
 	if polyphony_archivextension == "VOL"
-		idstring "GTFS"
+		get vol_sign long
+		if vol_sign != 0x53465447 # GTFS
+			print " not a GTFS(GT2.VOL) file, contact me if you want me to take a look at your file. "
+			cleanexit
+		endif
 		get zero_01 long
 		get individual_entries short
 		get overall_entries short
 		get zero_02 long
 		for i = 0 < individual_entries
 			get entry_value long
-			putarray 1 i entry_value
+			xmath remaining_bytes_for_entry "entry_value & 0x7ff"
+			putarray 1 i remaining_bytes_for_entry
+			xmath entry_offset "(entry_value >> 11) & 0x1fffff"
+			putarray 2 i entry_offset
 		next i
 
-		getarray info_off_01 1 1
-		xmath overall_entry_info_offset "info_off_01 - (info_off_01 & 0x7ff)"
+		getarray overall_entry_info_offset 2 1
+		math overall_entry_info_offset << 11
 		goto overall_entry_info_offset
-		for j = 0 < overall_entries
+		for i = 0 < overall_entries
 			get file_timestamp time
-			putarray 2 j file_timestamp
+			putarray 3 i file_timestamp
 			get entry_info_index short
-			putarray 3 j entry_info_index
+			putarray 4 i entry_info_index
 			get entry_flag byte
-			putarray 4 j entry_flag
+			xmath last_entry "(entry_flag >> 7) & 1"
+			putarray 5 i last_entry
+			xmath entry_type "entry_flag & 1"
+			putarray 6 i entry_type
 			getdstring entry_name 0x19
-			putarray 5 j entry_name
-		next j
+			putarray 7 i entry_name
+		next i
 
-		math last_overall_entry = overall_entries
-		math last_overall_entry - 1
+		for directory = 0 < 256
+			putarray 101 j 0
+			putarray 102 j 0
+			putarray 103 j ""
+		next directory
+		math current_entry = 0
 		math previous_entry = 0
-		math current_entry_number = 0
-		math last_file = 0
-		math last_directory = 0
-		for z = 0
-			set file_name string ""
-			putarray 11 z current_entry_number
-			putarray 12 current_entry_number previous_entry
-			putarray 13 current_entry_number z
-			getarray file_timestamp 2 z
-			getarray entry_info_index 3 z
-			getarray entry_flag 4 z
-			getarray entry_name 5 z
-			xmath entry_type "entry_flag & 0x01"
-			xmath final_entry "(entry_flag >> 7) & 0x01"
-			if entry_type == 0
-				if final_entry = 1
-					math last_file = 1
-				endif
-				getarray entry_value 1 entry_info_index
-				xmath file_offset "entry_value - (entry_value & 0x7ff)"
-				math next_entry_info_index = entry_info_index
-				math next_entry_info_index + 1
-				getarray next_entry_value 1 next_entry_info_index
-				xmath file_size "((next_entry_value - (next_entry_value & 0x7ff)) - (entry_value - (entry_value & 0x7ff))) - (entry_value & 0x7ff)"
-				math name_entries = current_entry_number
-				for n = 0 <= name_entries	
-					string file_name + /
-					getarray name_entry_number 13 n
-					getarray name_entry_string 5 name_entry_number
-					string file_name + name_entry_string
-				next n
-				log file_name file_offset file_size
-			elif entry_type == 1
-				if final_entry = 1
-					math last_directory = 1
-				endif
-				if entry_name != ".."
-					math previous_entry == z
-					math z == entry_info_index
-					math current_entry_number + 1
-				endif
-			endif
-			if last_file == 1
-				if last_directory = 0
-					getarray previous_entry 12 current_entry_number
-					math z == previous_entry
-					math current_entry_number - 1
-				elif last_directory = 1
-					if z == last_overall_entry
-						break
-					else
-						for
-							getarray previous_entry 12 current_entry_number
-							# (to-do) "gtmenu" folder has a few additional folders depending on which GT2.VOL file it is(across all Gran Turismo 2 releases that is)
-							# at best, this script will only parse that folder as intended
-							# at worst, this script will not even handle multi-foldered entries correctly so there is a pretty good chance
-							# it'll parse the same folders again and again and again until the end of eternity
-							if current_entry_number = 0
-								math z == previous_entry
-								math z + 1
-								break
-							endif
-							math current_entry_number - 1
-						next
+		math current_directory = 0
+		math all_parsed_entries = 0
+		xmath last_entry "overall_entries - 1"
+		callfunction parse_gtfs 1
+
+		startfunction parse_gtfs
+			for i = current_entry < overall_entries
+				putarray 101 current_directory current_entry
+				xmath next_entry "current_entry + 1"
+				putarray 102 current_directory next_entry
+				getarray file_timestamp 3 i
+				getarray entry_info_index 4 i
+				getarray entry_dead_end 5 i
+				getarray entry_type 6 i
+				getarray entry_name 7 i
+				putarray 103 current_directory entry_name
+				if entry_type = 0
+					xmath next_index "entry_info_index + 1"
+					getarray starting_file_offset 2 entry_info_index
+					math starting_file_offset << 11
+					getarray finishing_file_offset 2 next_index
+					math finishing_file_offset << 11
+					getarray remaining_bytes_within_stored_file 1 entry_info_index
+					xmath file_size "(finishing_file_offset - starting_file_offset) - remaining_bytes_within_stored_file"
+					putarray 8 i file_size
+					math file_offset = starting_file_offset
+					xmath keywords "current_directory + 1"
+					set file_name string ""
+					for name = 0 < keywords
+						getarray keyword 103 name
+						string file_name + "/"
+						string file_name + keyword
+					next name
+					putarray 9 i file_name
+					log file_name file_offset file_size
+				elif entry_type = 1
+					if entry_name != ".."
+						math current_directory + 1
+						math current_entry = entry_info_index
+						callfunction parse_gtfs 1
 					endif
-					math last_directory = 0
 				endif
-				math last_file = 0
-			endif
-		next z
+				if next_entry == overall_entries
+					cleanexit
+				endif
+				if entry_dead_end = 1
+					if entry_type != 1
+						xmath previous_directory "current_directory - 1"
+						getarray current_entry 102 previous_directory
+						math current_directory - 1
+						callfunction parse_gtfs 1
+					endif
+				endif
+				math current_entry + 1
+			next i
+		endfunction
 	elif polyphony_archivextension == "OVL"
 		get header_limit long
 		goto 0
