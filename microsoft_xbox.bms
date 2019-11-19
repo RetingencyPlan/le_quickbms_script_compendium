@@ -7,7 +7,7 @@ endif
 
 get dvd_size asize
 if dvd_size != 0x1d26a8000
-	print " this script was designed for Redump releases of Xbox discs. \n sorry about that. "
+	print " this script was designed for Redump releases (or at the very least accurate dumps) of Xbox discs. \n sorry about that. "
 	cleanexit
 endif
 
@@ -122,6 +122,8 @@ startfunction parse_mxm
 					math d7 = 34
 				elif d6 <= 38
 					math d7 = 38
+				elif d6 <= 42
+					math d7 = 42
 				endif
 				getdstring dn d6
 				xmath d8 "d7 - d6"
