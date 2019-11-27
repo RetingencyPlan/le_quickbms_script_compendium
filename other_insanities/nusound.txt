@@ -1,6 +1,6 @@
-NuSound middleware documentation
+NuSound middleware documentation (WIP, anyone help!)
 
-NuSound 1 uses binary files for pretty much everything, including configuration settings and stream offsets for each sound (albeit somewhat separately), although it may not be the case for some Namco games as it's up to the devs to develop binary files or some other scheme to aid the following formats into playing a sound entry/sound file in-game.
+NuSound 1(200?-2006?) uses binary files for pretty much everything, including configuration settings and stream offsets for each sound (albeit somewhat separately), although it may not be the case for some Namco games as it's up to the devs to develop binary files or some other scheme to aid the following formats into playing a sound entry/sound file in-game.
 as far as streamed sound formats are concerned, we have:
 NPSF(nps extension, for PS2 and PSP platforms)
 Cstr(dsp extension, for Gamecube platform)
@@ -12,10 +12,11 @@ xbd/xhd(for Xbox platform, signed ID is XHDp and notice the lack of "3d" format 
 
 sometimes the streamed files that take advantage of these formats are concatenated into one(or more) big file(s) while the necessary info for reading these files (including sound banks) are around somewhere the game invokes a streamed sound (source for that sound can come from either a standalone format or a sound bank) into in-game. in the case of Xbox game Breakdown, these streamed sound files are built into an entire file archival format that has all info needed to load these files at which point the game will invoke those formats so all these sounds can be played in-game anyway.
 
-NuSound 2 uses its own nub file format for sound banks and the rest are all binary files with their own formats for configuration settings.
+NuSound 2(2005-201?) uses its own nub file format for sound banks and the rest are all binary files with their own formats for configuration settings.
 as a consequence of this, many other files that rely on nub files are invoked into in-game for real-time playback.
+audio codec usage in nub is odd. sometimes, a sound entry might have a codec that turns out to have its own header into related to the sound entry using that codec in question(XMA, big-endian PCM, VAG). sometimes, a sound entry might have an entire full header designed for use in a file format in case of using another codec(IDSP, RIFF AT3, BNSF is14). sometimes, a sound entry might even be sequenced or even contain anything at all for some reason(codec number 05).
 
-NuSound 3 uses NUS3 chunked file format for any situation, including configuration settings(nus3conf, nus3conf3d) and sound banks(nus2, nus3bank, nus3audio)
+NuSound 3(2011-present) uses NUS3 chunked file format for any situation, including configuration settings(nus3conf, nus3conf3d) and sound banks(nus2, nus3bank, nus3audio)
 this NUS3 audio system is home to at least two formats: configuration file(nus3conf, nus3conf3d) and sound bank file(nus3bank, nus3audio) respectively.
 naturally, only the "sound bank file" format is allowed to store several formats depending on which codec a single sound entry uses within that file. there are a few common formats that can accept any codec on its wake:
 RIFF - Resource Interchange File Format, derived from EA's Interchangeable File Format. NUS3 audio system uses its WAVE extension.
