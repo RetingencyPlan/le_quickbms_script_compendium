@@ -1,0 +1,77 @@
+# Square Enix - fse/fsd file system
+# this file system is exclusive to some of their PSP games as listed below
+# ---
+# Crisis Core: Final Fantasy VII - discimg.[fse/pkg]
+# The 3rd Birthday - 3rd.[fsd/pkg]
+# Final Fantasy Reishiki/Final Fantasy Type-0 - yellow.[fsd/pkg]
+
+open FDDE "pkg" 1
+get ext extension
+if ext == "fse"
+	open FDDE ext 0
+	get fse_size asize 0
+	xmath files "fse_size / 12"
+	math folder = 0
+	for i = 0 < files
+		get file_offset long
+		math file_offset << 11
+		get file_size long
+		get file_03 long
+		string temp_name p "%04d/" folder
+		if i != 0
+			if file_offset != 0
+				if file_size == 0
+					math folder + 1
+				else
+					log temp_name file_offset file_size 1
+				endif
+			endif
+		endif
+	next i
+elif ext == "fsd"
+	open FDDE ext 0
+	get fsd_current_disc long
+	get fsd_02 long
+	get files long
+	get fsd_04 long
+	get fsd_05 long
+	get fsd_06 long
+	get pkg_size long
+	get fsd_08 long
+	get fsd_09 long
+	get fsd_10 long
+	# rest of the header (up to 0x72c location) are just segfaults after segfaults for zero gain just being there
+	goto fsd_05
+	xmath full_entries "files + 1"
+	for i = 0 < full_entries
+		get file_01 long
+		xmath file_offset "file_01 & 0xfffff"
+		putarray 0 i file_offset
+		xmath file_01_02 "file_01 >> 0x14"
+		putarray 1 i file_01_02
+		get file_02 long
+		putarray 2 i file_02
+	next i
+	math folder = 0
+	for i = 0 < files
+		getarray file_offset 0 i
+		getarray remaining_file_size 1 i
+		getarray file_type 2 i
+		string temp_name p "%04d/%01x/" folder file_type
+		math i + 1
+		getarray size_aid 0 i
+		math i - 1
+		xmath size_init "size_aid - file_offset"
+		if size_init != 0
+			xmath file_size "((size_init - 1) << 11) + remaining_file_size"
+		else
+			math file_size = 0
+		endif
+		math file_offset << 11
+		if file_size = 0
+			math folder + 1
+		else
+			log temp_name file_offset file_size 1
+		endif
+	next i
+endif
