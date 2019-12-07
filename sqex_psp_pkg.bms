@@ -5,10 +5,9 @@
 # The 3rd Birthday - 3rd.[fsd/pkg]
 # Final Fantasy Reishiki/Final Fantasy Type-0 - yellow.[fsd/pkg]
 
-open FDDE "pkg" 1
 get ext extension
 if ext == "fse"
-	open FDDE ext 0
+	callfunction init_load 1
 	get fse_size asize 0
 	xmath files "fse_size / 12"
 	math folder = 0
@@ -29,7 +28,7 @@ if ext == "fse"
 		endif
 	next i
 elif ext == "fsd"
-	open FDDE ext 0
+	callfunction init_load 1
 	get fsd_current_disc long
 	get fsd_02 long
 	get files long
@@ -57,7 +56,7 @@ elif ext == "fsd"
 		getarray file_offset 0 i
 		getarray remaining_file_size 1 i
 		getarray file_type 2 i
-		string temp_name p "%04d/%01x/" folder file_type
+		string temp_name p "%05d/%01x/" folder file_type
 		math i + 1
 		getarray size_aid 0 i
 		math i - 1
@@ -75,3 +74,8 @@ elif ext == "fsd"
 		endif
 	next i
 endif
+
+startfunction init_load
+	open FDDE ext 0
+	open FDDE "pkg" 1
+endfunction
