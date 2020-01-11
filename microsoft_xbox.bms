@@ -124,6 +124,10 @@ startfunction parse_mxm
 					math d7 = 38
 				elif d6 <= 42
 					math d7 = 42
+				elif d6 <= 46
+					math d7 = 46
+				elif d6 <= 50
+					math d7 = 50
 				endif
 				getdstring dn d6
 				xmath d8 "d7 - d6"
