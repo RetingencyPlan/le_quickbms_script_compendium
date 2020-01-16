@@ -2,10 +2,20 @@
 
 get ps2_elf_name filename
 
+math is_taikenban = 0
 if ps2_elf_name == "SLPM_601.12" # Hresvelgr (Trial Version)
+	# this particular version has its PCM files stored on a separate header
+	# instead of a singular appended .BIN file for the game exe to latch onto
 	open FDSE "RPK.BIN" 1
-	math file_number = 1
-	callfunction handle_hresvelgr_info 1
+	open FDSE "\SD\SD0FP.FP" 2
+	open FDSE "\SD\SD1FP.FP" 3
+	open FDSE "\SD\SD2FP.FP" 4
+	open FDSE "\SD\SD3FP.FP" 5
+	open FDSE "\PCM\FV.PCM" 6
+	math is_taikenban = 1
+	for file_number = 1 <= 6
+		callfunction handle_hresvelgr_info 1
+	next file_number
 elif ps2_elf_name == "SLPS_200.24" # Hresvelgr
 	open FDSE "RPK.BIN" 1
 	open FDSE "SD.BIN" 2
@@ -18,23 +28,28 @@ elif ps2_elf_name == "SLPS_200.59" # Hresvelgr: International Edition
 	for file_number = 1 <= 2
 		callfunction handle_hresvelgr_info 1
 	next file_number
+elif ps2_elf_name == "SLES_505.44" # Jet Ion GP
+	open FDSE "RPKPAL.BIN" 1
+	open FDSE "SDOS.BIN" 2
+	for file_number = 1 <= 2
+		callfunction handle_hresvelgr_info 1
+	next file_number
 endif
 
 startfunction handle_hresvelgr_info
 	/*
-	if file_number = 1
-		goto 0x365d70
-	endif
-	get files long
-	for i = 0 < files
-		get file_offset long
-		math file_offset << 11
-		putarray i 1 file_offset
-		get file_size long
-		putarray i 2 file_Size 
-	next i
-	if file_number = 1
-	endif
+	up until Hresvelgr: International Edition, \PCM\FV.PCM file table could be approached like this in the game exe
+	SLPM_601.12 - 0x2e4460
+	SLPS_200.24 - 0x365d70
+	the game demo (SLPM_601.12) had said file stored individually. the original game release (SLPS_200.24) had said file stored in SD.BIN with a file table designed specifically for both SD.BIN and \PCM\FV.PCM, with the table for the latter file stored *before* the SD.BIN file table.
+	later releases (SLPS_200.59) avoid this entirely and has everything stored into SDJ.BIN with a singularly dedicated file table for it in the game exe.
+	*/
+	/*
+	by contrast all .FP files used by the game contain a special file table for each (all within the game exe)
+	SD0FP.FP - 0x2e40c0(SLPM_601.12)
+	SD1FP.FP - 0x2e4140(SLPM_601.12)
+	SD2FP.FP - 0x2e4158(SLPM_601.12)
+	SD3FP.FP - 0x2e4170(SLPM_601.12)
 	*/
 	putarray 0 0 ""
 	putarray 1 0 ""
@@ -53,6 +68,9 @@ startfunction handle_hresvelgr_info
 		elif ps2_elf_name == "SLPS_200.59"
 			goto 0x21fd00
 			math rpk_files = 0x30
+		elif ps2_elf_name == "SLES_505.44"
+			goto 0x22ed00
+			math rpk_files = 0x2e
 		endif
 		for i = 0 < rpk_files
 			get file_name_string_offset long
@@ -73,73 +91,158 @@ startfunction handle_hresvelgr_info
 			callfunction extract_file 1
 		next i
 	endif
-	if file_number = 2
-		if ps2_elf_name == "SLPS_200.24"
-			goto 0x3660b8
-		elif ps2_elf_name == "SLPS_200.59"
-			goto 0x37ab10
-		endif
-		get pcm_files long
-		for i = 0 < pcm_files
-			get file_offset long
-			math file_offset << 11
-			putarray i 1 file_offset
-			get file_size long
-			putarray i 2 file_Size 
-		next i
-		if ps2_elf_name == "SLPS_200.24"
-			goto 0x365950
-			math i3 = 4
-			for i2 = 0 < 11
-				get file_name_string_offset long
-				get file_02 long
-				callfunction calc_string_value 1
-				if i2 == 10
-					putarray 0 3 file_name_string_offset
-				else
+	if is_taikenban != 1
+		if file_number = 2
+			if ps2_elf_name == "SLPS_200.24"
+				goto 0x3660b8
+			elif ps2_elf_name == "SLPS_200.59"
+				goto 0x37ab10
+			elif ps2_elf_name == "SLES_505.44"
+				goto 0x389b58
+			endif
+			get pcm_files long
+			for i = 0 < pcm_files
+				get file_offset long
+				math file_offset << 11
+				putarray i 1 file_offset
+				get file_size long
+				putarray i 2 file_Size 
+			next i
+			if ps2_elf_name == "SLPS_200.24"
+				goto 0x365950
+				math i3 = 4
+				for i2 = 0 < 11
+					get file_name_string_offset long
+					get file_02 long
+					callfunction calc_string_value 1
+					if i2 == 10
+						putarray 0 3 file_name_string_offset
+					else
+						putarray i3 3 file_name_string_offset
+						math i3 + 1
+					endif
+				next i2
+				math i3 = 1
+				for i2 = 0 < 3
+					get file_01 long
+					get file_name_string_offset long
+					get file_03 long
+					callfunction calc_string_value 1
 					putarray i3 3 file_name_string_offset
 					math i3 + 1
-				endif
-			next i2
-			math i3 = 1
-			for i2 = 0 < 3
-				get file_01 long
-				get file_name_string_offset long
-				get file_03 long
-				callfunction calc_string_value 1
-				putarray i3 3 file_name_string_offset
-				math i3 + 1
-			next i2
-		elif ps2_elf_name == "SLPS_200.59"
-			goto 0x37a724
-			math i3 = 0
-			for i2 = 0 < 4
-				get file_01 long
-				get file_name_string_offset long
-				get file_03 long
-				callfunction calc_string_value 1
-				putarray i3 3 file_name_string_offset
-				math i3 + 1
-			next i2
-			for i2 = 0 < 55
-				putarray i3 3 0
-				math i3 + 1
-			next i2
-		endif
-		math i2s = 1
-		for i = 0 < pcm_files
-			getarray file_offset i 1
-			getarray file_size i 2
-			getarray file_name_string_offset i 3
-			if file_name_string_offset != 0
-				goto file_name_string_offset
-				get file_name string
-				string file_name > ";1"
-			else
-				string file_name p "\PCM\%02d.PCM" i2s
-				math i2s + 1
+				next i2
+			elif ps2_elf_name == "SLPS_200.59"
+				goto 0x37a724
+				math i3 = 0
+				for i2 = 0 < 4
+					get file_01 long
+					get file_name_string_offset long
+					get file_03 long
+					callfunction calc_string_value 1
+					putarray i3 3 file_name_string_offset
+					math i3 + 1
+				next i2
+				for i2 = 0 < 55
+					putarray i3 3 0
+					math i3 + 1
+				next i2
+			elif ps2_elf_name == "SLES_505.44"
+				goto 0x38976c
+				math i3 = 0
+				for i2 = 0 < 4
+					get file_01 long
+					get file_name_string_offset long
+					get file_03 long
+					callfunction calc_string_value 1
+					putarray i3 3 file_name_string_offset
+					math i3 + 1
+				next i2
+				for i2 = 0 < 12
+					putarray i3 3 0
+					math i3 + 1
+				next i2
 			endif
-			callfunction extract_file 1
+			math i2s = 1
+			for i = 0 < pcm_files
+				getarray file_offset i 1
+				getarray file_size i 2
+				getarray file_name_string_offset i 3
+				if file_name_string_offset != 0
+					goto file_name_string_offset
+					get file_name string
+					string file_name > ";1"
+				else
+					string file_name p "\PCM\%02d.PCM" i2s
+					math i2s + 1
+				endif
+				callfunction extract_file 1
+			next i
+		endif
+	else
+		if file_number == 2
+			goto 0x2e40c0
+		endif
+		if file_number == 3
+			goto 0x2e4140
+		endif
+		if file_number == 4
+			goto 0x2e4158
+		endif
+		if file_number == 5
+			goto 0x2e4170
+		endif
+		if file_number == 6
+			goto 0x2e4460
+		endif
+		get files long
+		for i = 0 < files
+			xmath i2 "i + 1"
+			set file_name string ""
+			get file_offset long
+			math file_offset << 11
+			get file_size long
+			if file_number == 2
+				set file_extension string ""
+				set pre_name string ""
+				goto file_offset file_number
+				get file_sign long file_number
+				goto -4 file_number SEEK_CUR
+				if file_sign == 0x53434549
+					callfunction handle_scei_file 1
+				elif file_sign == 0x56414270
+					set file_extension string "VH"
+				endif
+				if i < 9
+					if i = 0
+						math i3 = 1
+					endif
+					set pre_name string "M"
+				endif
+				if i > 8
+					if i = 9
+						math i3 = 1
+					endif
+					set pre_name string "BANK_"
+				endif
+				string file_name p "\FP\%s%02d.%s" pre_name i3 file_extension
+				math i3 + 1
+			endif
+			if file_number >= 3 && file_number <= 5
+				if file_number = 3 && i = 0
+					math i3 = 1
+				endif
+				set pre_name string "\FP\BANK_"
+				set file_extension string "VB"
+				if file_number == 5 && i == 1
+					set file_extension string "BD"
+				endif
+				string file_name p "%s%02d.%s" pre_name i3 file_extension
+				math i3 + 1
+			endif
+			if file_number == 6
+				string file_name p "\FV\%03d.PCM" i2
+			endif
+			log file_name file_offset file_size file_number
 		next i
 	endif
 endfunction
@@ -150,4 +253,28 @@ endfunction
 
 startfunction extract_file
 	log file_name file_offset file_size file_number
+endfunction
+
+startfunction handle_scei_file
+	set file_extension string ""
+	savepos pos_01 file_number
+	for sc = 0 < 1
+		goto pos_01 file_number
+		get is_scei_chunk long file_number
+		if is_scei_chunk != 0x53434549
+			break
+		endif
+		get scei_chunk_type long file_number
+		get scei_chunk_size long file_number
+		if scei_chunk_type = 0x56657273
+			get scei_bank_info long file_number
+			xmath is_sound_bank_header "(scei_bank_info >> 24) & 0xff"
+			if is_sound_bank_header == 0
+				set file_extension string "SEQ"
+			elif is_sound_bank_header == 1
+				set file_extension string "HD"
+			endif
+		endif
+		math pos_01 + scei_chunk_size
+	next sc
 endfunction
