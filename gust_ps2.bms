@@ -1,0 +1,105 @@
+# Gust - PS2 titles
+
+get ps2_elf_name filename
+
+if ps2_elf_name == "SLPS_200.24" # Hresvelgr (PS2)
+	open FDSE "RPK.BIN" 1
+	open FDSE "SD.BIN" 2
+
+	math file_number = 1
+	callfunction get_archive_info 1
+	math file_number = 2
+	callfunction get_archive_info 1
+endif
+
+startfunction get_archive_info
+	/*
+	if file_number = 1
+		goto 0x365d70
+	endif
+	get files long
+	for i = 0 < files
+		get file_offset long
+		math file_offset << 11
+		putarray i 1 file_offset
+		get file_size long
+		putarray i 2 file_Size 
+	next i
+	if file_number = 1
+	endif
+	*/
+	putarray 0 0 ""
+	putarray 1 0 ""
+	putarray 0 1 ""
+	putarray 2 0 ""
+	putarray 0 2 ""
+	putarray 3 0 ""
+	putarray 0 3 ""
+	if file_number = 1
+		goto 0x200980
+		for i = 0 < 0x10
+			get file_name_string_offset long
+			math file_name_string_offset - 0x1ff000
+			putarray 1 i file_name_string_offset
+			get file_offset long
+			math file_offset << 11
+			putarray 2 i file_offset
+			get file_size long
+			putarray 3 i file_size
+		next i
+		for i = 0 < 0x10
+			getarray file_name_string_offset 1 i
+			goto file_name_string_offset
+			get file_name string
+			getarray file_offset 2 i
+			getarray file_size 3 i
+			callfunction extract_file 1
+		next i
+	endif
+	if file_number = 2
+		goto 0x3660b8
+		get pcm_files long
+		for i = 0 < pcm_files
+			get file_offset long
+			math file_offset << 11
+			putarray i 1 file_offset
+			get file_size long
+			putarray i 2 file_Size 
+		next i
+		goto 0x365950
+		math i3 = 4
+		for i2 = 0 < 11
+			get file_name_string_offset long
+			get file_02 long
+			math file_name_string_offset - 0x1ff000
+			if i2 == 10
+				putarray 0 3 file_name_string_offset
+			else
+				putarray i3 3 file_name_string_offset
+				math i3 + 1
+			endif
+		next i2
+		math i3 = 1
+		for i2 = 0 < 3
+			get file_01 long
+			get file_name_string_offset long
+			get file_03 long
+			math file_name_string_offset - 0x1ff000
+			putarray i3 3 file_name_string_offset
+			math i3 + 1
+		next i2
+		for i = 0 < pcm_files
+			getarray file_offset i 1
+			getarray file_size i 2
+			getarray file_name_string_offset i 3
+			goto file_name_string_offset
+			get file_name string
+			string file_name > ";1"
+			callfunction extract_file 1
+		next i
+	endif
+endfunction
+
+startfunction extract_file
+	log file_name file_offset file_size file_number
+endfunction
