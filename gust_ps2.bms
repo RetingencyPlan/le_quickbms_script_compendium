@@ -2,17 +2,25 @@
 
 get ps2_elf_name filename
 
-if ps2_elf_name == "SLPS_200.24" # Hresvelgr (PS2)
+if ps2_elf_name == "SLPM_601.12" # Hresvelgr (Trial Version)
+	open FDSE "RPK.BIN" 1
+	math file_number = 1
+	callfunction handle_hresvelgr_info 1
+elif ps2_elf_name == "SLPS_200.24" # Hresvelgr
 	open FDSE "RPK.BIN" 1
 	open FDSE "SD.BIN" 2
-
-	math file_number = 1
-	callfunction get_archive_info 1
-	math file_number = 2
-	callfunction get_archive_info 1
+	for file_number = 1 <= 2
+		callfunction handle_hresvelgr_info 1
+	next file_number
+elif ps2_elf_name == "SLPS_200.59" # Hresvelgr: International Edition
+	open FDSE "RPK.BIN" 1
+	open FDSE "SDJ.BIN" 2
+	for file_number = 1 <= 2
+		callfunction handle_hresvelgr_info 1
+	next file_number
 endif
 
-startfunction get_archive_info
+startfunction handle_hresvelgr_info
 	/*
 	if file_number = 1
 		goto 0x365d70
@@ -36,8 +44,17 @@ startfunction get_archive_info
 	putarray 3 0 ""
 	putarray 0 3 ""
 	if file_number = 1
-		goto 0x200980
-		for i = 0 < 0x10
+		if ps2_elf_name == "SLPM_601.12"
+			goto 0x17cd80
+			math rpk_files = 7
+		elif ps2_elf_name == "SLPS_200.24"
+			goto 0x200980
+			math rpk_files = 0x10
+		elif ps2_elf_name == "SLPS_200.59"
+			goto 0x21fd00
+			math rpk_files = 0x30
+		endif
+		for i = 0 < rpk_files
 			get file_name_string_offset long
 			callfunction calc_string_value 1
 			putarray 1 i file_name_string_offset
@@ -47,7 +64,7 @@ startfunction get_archive_info
 			get file_size long
 			putarray 3 i file_size
 		next i
-		for i = 0 < 0x10
+		for i = 0 < rpk_files
 			getarray file_name_string_offset 1 i
 			goto file_name_string_offset
 			get file_name string
@@ -57,7 +74,11 @@ startfunction get_archive_info
 		next i
 	endif
 	if file_number = 2
-		goto 0x3660b8
+		if ps2_elf_name == "SLPS_200.24"
+			goto 0x3660b8
+		elif ps2_elf_name == "SLPS_200.59"
+			goto 0x37ab10
+		endif
 		get pcm_files long
 		for i = 0 < pcm_files
 			get file_offset long
@@ -66,35 +87,58 @@ startfunction get_archive_info
 			get file_size long
 			putarray i 2 file_Size 
 		next i
-		goto 0x365950
-		math i3 = 4
-		for i2 = 0 < 11
-			get file_name_string_offset long
-			get file_02 long
-			callfunction calc_string_value 1
-			if i2 == 10
-				putarray 0 3 file_name_string_offset
-			else
+		if ps2_elf_name == "SLPS_200.24"
+			goto 0x365950
+			math i3 = 4
+			for i2 = 0 < 11
+				get file_name_string_offset long
+				get file_02 long
+				callfunction calc_string_value 1
+				if i2 == 10
+					putarray 0 3 file_name_string_offset
+				else
+					putarray i3 3 file_name_string_offset
+					math i3 + 1
+				endif
+			next i2
+			math i3 = 1
+			for i2 = 0 < 3
+				get file_01 long
+				get file_name_string_offset long
+				get file_03 long
+				callfunction calc_string_value 1
 				putarray i3 3 file_name_string_offset
 				math i3 + 1
-			endif
-		next i2
-		math i3 = 1
-		for i2 = 0 < 3
-			get file_01 long
-			get file_name_string_offset long
-			get file_03 long
-			callfunction calc_string_value 1
-			putarray i3 3 file_name_string_offset
-			math i3 + 1
-		next i2
+			next i2
+		elif ps2_elf_name == "SLPS_200.59"
+			goto 0x37a724
+			math i3 = 0
+			for i2 = 0 < 4
+				get file_01 long
+				get file_name_string_offset long
+				get file_03 long
+				callfunction calc_string_value 1
+				putarray i3 3 file_name_string_offset
+				math i3 + 1
+			next i2
+			for i2 = 0 < 55
+				putarray i3 3 0
+				math i3 + 1
+			next i2
+		endif
+		math i2s = 1
 		for i = 0 < pcm_files
 			getarray file_offset i 1
 			getarray file_size i 2
 			getarray file_name_string_offset i 3
-			goto file_name_string_offset
-			get file_name string
-			string file_name > ";1"
+			if file_name_string_offset != 0
+				goto file_name_string_offset
+				get file_name string
+				string file_name > ";1"
+			else
+				string file_name p "\PCM\%02d.PCM" i2s
+				math i2s + 1
+			endif
 			callfunction extract_file 1
 		next i
 	endif
