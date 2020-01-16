@@ -39,7 +39,7 @@ startfunction get_archive_info
 		goto 0x200980
 		for i = 0 < 0x10
 			get file_name_string_offset long
-			math file_name_string_offset - 0x1ff000
+			callfunction calc_string_value 1
 			putarray 1 i file_name_string_offset
 			get file_offset long
 			math file_offset << 11
@@ -71,7 +71,7 @@ startfunction get_archive_info
 		for i2 = 0 < 11
 			get file_name_string_offset long
 			get file_02 long
-			math file_name_string_offset - 0x1ff000
+			callfunction calc_string_value 1
 			if i2 == 10
 				putarray 0 3 file_name_string_offset
 			else
@@ -84,7 +84,7 @@ startfunction get_archive_info
 			get file_01 long
 			get file_name_string_offset long
 			get file_03 long
-			math file_name_string_offset - 0x1ff000
+			callfunction calc_string_value 1
 			putarray i3 3 file_name_string_offset
 			math i3 + 1
 		next i2
@@ -98,6 +98,10 @@ startfunction get_archive_info
 			callfunction extract_file 1
 		next i
 	endif
+endfunction
+
+startfunction calc_string_value
+	math file_name_string_offset - 0x1ff000
 endfunction
 
 startfunction extract_file
