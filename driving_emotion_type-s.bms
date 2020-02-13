@@ -25,7 +25,7 @@ for i = 0 < total_files
 	get file_size long 1
 	
 	if file_size && 0x10000000
-		# this kind of archive format makes various references to a lot of non-existant files
+		# this kind of archive format makes various references to a lot of non-existent files
 		print "%file_name%(%file_offset|x%) - presumed dead"
 	else
 		log file_name file_offset file_size 1
