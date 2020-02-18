@@ -392,31 +392,35 @@ startfunction parse_entry_types
 	log MEMORY_FILE4 0 0
 	log MEMORY_FILE5 0 0
 	log MEMORY_FILE6 0 0
-	getarray entry_type 1 j
+	getarray entry_info 1 j
+	xmath is_7f "(entry_info >> 24) & 0xff"
+	xmath entry_type "entry_info & 0xffffff"
 	if kjp_name & "face"
 		if j = 0
-			if entry_type == 0x00000000
+			if entry_info == 0x00000000
 				callfunction parse_file_entries 1
 			endif
 		endif
 	endif
-	if entry_type == 0x7f000000
-		getarray entry_size 2 j
-		if kjp_name & "slot"
-			math slot_entry_offset = slot_file_offset
+	if is_7f == 0x7f
+		if entry_type == 0
+			getarray entry_size 2 j
+			if kjp_name & "slot"
+				math slot_entry_offset = slot_file_offset
+			endif
+		elif entry_type == 2
+			callfunction parse_file_entries 1
+		elif entry_type == 3
+			callfunction parse_file_entries 1
+		elif entry_type == 4
+			callfunction parse_file_entries 1
+		elif entry_type == 5
+			callfunction parse_file_entries 1
+		elif entry_type == 0x10
+			callfunction parse_file_entries 1
+		elif entry_type == 0x10000
+			callfunction parse_file_entries 1
 		endif
-	elif entry_type == 0x7f000002
-		callfunction parse_file_entries 1
-	elif entry_type == 0x7f000003
-		callfunction parse_file_entries 1
-	elif entry_type == 0x7f000004
-		callfunction parse_file_entries 1
-	elif entry_type == 0x7f000005
-		callfunction parse_file_entries 1
-	elif entry_type == 0x7f000010
-		callfunction parse_file_entries 1
-	elif entry_type == 0x7f010000
-		callfunction parse_file_entries 1
 	endif
 endfunction
 
@@ -430,8 +434,8 @@ startfunction parse_file_entries
 	endif
 	math j + 1
 	getarray next_info 1 j
-	xmath is_compressed "next_info & 0xff000000"
-	if is_compressed == 0x7e000000
+	xmath is_compressed "(next_info >> 24) & 0xff"
+	if is_compressed == 0x7e
 		math compressed_entry_size = next_info
 		math compressed_entry_size & 0xffffff
 		if mode = 0
@@ -447,15 +451,15 @@ startfunction parse_file_entries
 	math j + 1
 	for
 		getarray file_info 1 j
-		xmath is_7d "file_info & 0xff000000"
+		xmath is_7d "(file_info >> 24) & 0xff"
 		if stage_dat_version = 3
-			if is_7d == 0x7d000000
+			if is_7d == 0x7d
 				math 7d_is_here = 1
 			endif
 		endif
 		if 7d_is_here = 0
 			if stage_dat_version = 2
-				if entry_type != 0x7f000010
+				if entry_type != 0x10
 					getarray hardcoded_extension_hash 1 j
 					getarray hardcoded_name_hash 2 j
 				endif
@@ -463,7 +467,7 @@ startfunction parse_file_entries
 				math j + 1
 				getarray next_file_offset_within_entry 3 j
 			else
-				if entry_type != 0x7f000010
+				if entry_type != 0x10
 					xmath first_extension_number "(file_info >> 24) & 0xff"
 					xmath hardcoded_name_hash "file_info & 0xffffff"
 				endif
@@ -496,7 +500,7 @@ startfunction parse_file_entries
 		elif kjp_name & "slot"
 			string file_name_per_entry p "%04d/%06x/%06x.%02x" i2 entry_type hardcoded_name_hash first_extension_number
 		elif kjp_name & "stage"
-			if entry_type == 0x7f000010
+			if entry_type == 0x10
 				if stage_dat_version = 3
 					string file_name_per_entry p "%s/%06x/%05x.psq" stage_name entry_type file_info
 				else
@@ -510,12 +514,12 @@ startfunction parse_file_entries
 				endif
 			endif
 		endif
-		if is_7d == 0x7d000000
+		if is_7d == 0x7d
 			if log_7d = 1
 				log file_name_per_entry 0 7d_size MEMORY_FILE6
 				math log_7d = 0
 			endif
-		elif is_compressed == 0x7e000000
+		elif is_compressed == 0x7e
 			if mode = 0
 				log file_name_per_entry file_offset_within_entry file_size_within_entry MEMORY_FILE
 			elif mode = 1
