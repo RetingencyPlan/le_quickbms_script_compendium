@@ -15,7 +15,7 @@ if bouncer_filename == "BOUNCER.bin"
 	callfunction PARSE_BIN_1 1
 elif bouncer_filename == "bgmdata.bin" || bouncer_filename == "bgmlist.bin" || bouncer_filename == "bgmofst.bin"
 	callfunction PARSE_BIN_2 1
-elif bouncer_filename == "bgmwddat.bin" || bouncer_filename == "bgmwdtbl.dat"
+elif bouncer_filename == "bgmwddat.bin" || bouncer_filename == "bgmwdtbl.bin"
 	callfunction PARSE_BIN_2 1
 elif bouncer_filename == "sdwddat.bin" || bouncer_filename == "sdwdtbl.bin"
 	callfunction PARSE_BIN_3 1
