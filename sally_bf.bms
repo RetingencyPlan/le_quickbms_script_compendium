@@ -53,11 +53,16 @@ startfunction read_bigfile_header
 	get file_indices long file_number
 	get flagship_file long file_number
 	math file_index_header_size = 0x18
-	goto 0x2c
-	putvarchr MEMORY_FILE2 file_index_header_size 0
-	xmath passes "file_index_header_size / 4"
-	math file_number = -2
-	callfunction decrypt_block 1
+	if bigfile_sign == 0x424947 # "BIG"
+		log MEMORY_FILE2 0x2c file_index_header_size
+		math file_number = -2
+	elif bigfile_sign == 0x425547 # "BUG"
+		goto 0x2c
+		putvarchr MEMORY_FILE2 file_index_header_size 0
+		xmath passes "file_index_header_size / 4"
+		math file_number = -2
+		callfunction decrypt_block 1
+	endif
 	goto 0 file_number
 	for i = 0 < file_indices
 		log MEMORY_FILE3 0 0
@@ -74,7 +79,7 @@ startfunction read_bigfile_header
 		xmath file_tab_size "files2 * entry_info_size_01"
 		xmath folder_tab_offset "file_tab_offset + (skips1 * entry_info_size_01)"
 		xmath folder_tab_size "folders2 * entry_info_size_02"
-		if bigfile_sign == 0x424947
+		if bigfile_sign == 0x424947 # "BIG"
 			log MEMORY_FILE3 file_listing_offset file_listing_size
 			math file_number = -3
 			callfunction initialize_file_listing 1
@@ -84,7 +89,7 @@ startfunction read_bigfile_header
 			log MEMORY_FILE5 folder_tab_offset folder_tab_size
 			math file_number = -5
 			callfunction parse_folder_tabs 1
-		elif bigfile_sign == 0x425547
+		elif bigfile_sign == 0x425547 # "BUG"
 			goto file_listing_offset
 			putvarchr MEMORY_FILE3 file_listing_size 0
 			xmath passes "files2 * 4"
@@ -110,12 +115,18 @@ startfunction read_bigfile_header
 		callfunction final_step 1
 		if next_listing_offset != 32bit_max_number
 			math next_listing_offset - file_index_header_size
-			goto next_listing_offset
-			putvarchr MEMORY_FILE2 file_index_header_size 0
-			xmath passes "file_index_header_size / 4"
-			math file_number = -2
-			callfunction decrypt_block 1
-			goto 0 file_number
+			if bigfile_sign == 0x424947 # "BIG"
+				log MEMORY_FILE2 next_listing_offset file_index_header_size
+				math file_number = -2
+				goto 0 file_number
+			elif bigfile_sign == 0x425547 # "BUG"
+				goto next_listing_offset
+				putvarchr MEMORY_FILE2 file_index_header_size 0
+				xmath passes "file_index_header_size / 4"
+				math file_number = -2
+				callfunction decrypt_block 1
+				goto 0 file_number
+			endif
 		endif
 	next i
 endfunction
