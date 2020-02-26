@@ -1,12 +1,17 @@
 # Ubisoft - BIG/BUG(*.bf/*.bf#/*.###)
 # ---
 # Beyond Good and Evil
-# Prince of Persia: The Sands of Time
+# Prince of Persia: The Sands of Tim
 # Prince of Persia: Warrior Within
+# Prince of Persia: Revelations
 # Peter Jackson's King Kong: The Official Game of the Movie
 # Prince of Persia: The Two Thrones
+# Rayman Raving Rabbids
 # TMNT
+# Prince of Persia: Rival Swords
 # My Word Coach
+# Petz: Horsez 2
+# Rayman Raving Rabbids 2
 # (possibly others that use this format)
 
 math 32bit_max_number = 0xffffffff
@@ -15,9 +20,10 @@ get bf_size asize
 get bf_name basename
 get bf_ext extension
 
-# list of games who use split bf
-# Beyond Good and Evil (Xbox) - .bf#
-# Peter Jackson's King Kong: The Official Game of the Movie (Xbox) - .###(starts with 001)
+# special cases of split bf files (incomplete list)
+# Beyond Good and Evil (Xbox) - .bf# (starts with 0)
+# Peter Jackson's King Kong: The Official Game of the Movie (Xbox) - .### (starts with 1)
+# these will be handled in the near future
 
 endian little
 
