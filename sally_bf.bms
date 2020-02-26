@@ -1,383 +1,265 @@
-# Beyond Good & Evil and any other Ubisoft game - *.bf/*.bf#/*.###
+# Ubisoft - BIG/BUG(*.bf/*.bf#/*.###)
+# ---
+# Beyond Good and Evil
+# Prince of Persia: The Sands of Time
+# Prince of Persia: Warrior Within
+# Peter Jackson's King Kong: The Official Game of the Movie
+# Prince of Persia: The Two Thrones
+# TMNT
+# My Word Coach
+# (possibly others that use this format)
 
-math xored = 0
+math 32bit_max_number = 0xffffffff
 
 get bf_size asize
 get bf_name basename
-get bf_ext extension # in case the format uses splitted archives(.bf0, .bf1, .bf2 and so on)
-get bf_sign long
-goto 0
-if bf_sign == 0x00475542
-	math xored = 1
-	idstring "BUG\x00"
-	filexor "\xb3\x98\xcc\x66"
-elif bf_sign == 0x00474942
-	idstring "BIG\x00"
-else
-	string show_sign p "0x%08x" bf_sign
-	print " this is either an unknown file or you just choose the wrong file \n here's the sign by the way %show_sign% \n just in case you want to talk with me about this you can find me on one of my(AnonBaiter) github reps and open up an issue there "
-	cleanexit
-endif
-if bf_name == "Sally_PC_POLISH" # workaround for Beyond Good & Evil HD(PS3(PSN), XBOX360(XBLA))
-	set bf_sign long 0x00475542
-	math xored = 0
-endif
-get bf_ver long
-get files1 long
-get folders1 long
-get bf_04 long
-get bf_05 long
-get bf_06 long
-get bf_07 long
-get bf_08 long
-get bf_09 long
-if bf_ver >= 0x22 || bf_ver <= 0x26
-	get bf_10 long
-	get files2 long
-	get folders2 long
-	get info_off1 long
-	get bf_14 long
-	get bf_15 long
-	get bf_16 long
-	if bf_sign == 0x00474942
-		math bf_general_info_size = 0x54
-	elif bf_sign == 0x00475542
-		math bf_general_info_size = 0x58
-	endif
-else
-	string show_ver p "0x%02x" bf_ver
-	print " sorry, but this script has no idea what to do with BF files that have this version value - %show_ver% \n just in case you want to talk with me about this you can find me on one of my(AnonBaiter) github reps and open up an issue there "
-	cleanexit
+get bf_ext extension
+
+# list of games who use split bf
+# Beyond Good and Evil (Xbox) - .bf#
+# Peter Jackson's King Kong: The Official Game of the Movie (Xbox) - .###(starts with 001)
+
+endian little
+
+get bf_01 long
+xmath bf_01_01 "(bf_01 & 0xff) << 24 | (bf_01 & 0xff00) << 8 | (bf_01 & 0xff0000) >> 8 | (bf_01 & 0xff000000) >> 24"
+xmath bigfile_sign "(bf_01_01 >> 8) & 0xffffff"
+xmath bigfile_extra_byte "bf_01_01 & 0xff"
+math entry_info_size = 0
+if bigfile_sign == 0x424947 # "BIG"
+	log MEMORY_FILE 4 0x28 # put initial header data into memory
+	math file_number = -1
+	math entry_info_size_01 = 0x54
+	math entry_info_size_02 = 0x54
+	callfunction read_bigfile_header 1
+elif bigfile_sign == 0x425547 # "BUG"
+	math entry_info_size_01 = 0x58
+	math entry_info_size_02 = 0x54
+	callfunction decrypt_bigfile_header 1
 endif
 
-xmath info_v1 "info_off1 + (bf_08 * 8)"
-xmath info_v2 "info_v1 + (bf_08 * bf_general_info_size)"
-
-for i1 = 0 < files1
-	get i1_01 long
-	putarray 1 i1 i1_01
-	get i1_02 long
-	putarray 2 i1 i1_02
-next i1
-
-goto info_v1
-for i3 = 0 < files1
-	get i3_01 long
-	putarray 11 i3 i3_01
-	get i3_02 long
-	putarray 12 i3 i3_02
-	get i3_03 long
-	putarray 13 i3 i3_03
-	get i3_04 long
-	putarray 14 i3 i3_04
-	get i3_05 time
-	putarray 15 i3 i3_05
-	getdstring i3_06 0x40
-	putarray 16 i3 i3_06
-	if bf_sign == 0x00475542
-		get i3_07 long
-		putarray 17 i3 i3_07
+startfunction read_bigfile_header
+	get version long file_number
+	if version == 0x2a
+		math entry_info_size_01 + 0x28
 	endif
-next i3
-
-goto info_v2
-for i2 = 0 < folders1
-	get i2_01 long
-	putarray 21 i2 i2_01
-	get i2_02 long
-	putarray 22 i2 i2_02
-	get i2_03 long
-	putarray 23 i2 i2_03
-	get i2_04 long
-	putarray 24 i2 i2_04
-	get i2_05 long
-	putarray 25 i2 i2_05
-	getdstring i2_06 0x40
-	putarray 26 i2 i2_06
-next i2
-
-if xored = 1
-	filexor ""
-endif
-
-for x1 = 0 < files2
-	getarray file_offset 1 x1
-	getarray file_name_hash 2 x1
-	getarray file_size 11 x1
-	getarray previous_file_entry 12 x1
-	getarray incoming_file_entry 13 x1
-	getarray directory_entry_per_file 14 x1
-	getarray file_timestamp 15 x1
-	getarray file_singular_name 16 x1
-	if bf_sign == 0x00475542
-		getarray file_type 17 x1
-	endif
-next x1
-
-for x2 = 0 < folders2
-	math string_entry = 0
-	math backup_value = x2
-	set directory_name_string string ""
-	getarray directory_last_file 21 x2
-	getarray foresighted_directory_entry 22 x2
-	getarray incoming_directory_entry 23 x2
-	getarray previous_directory_entry 24 x2
-	getarray related_directory_entry 25 x2
-	getarray directory_singular_name 26 x2
-	do
-		getarray rde2 25 backup_value
-		getarray dsn2 26 backup_value
-		putarray 101 string_entry dsn2
-		math backup_value = rde2
-		math string_entry + 1
-	while backup_value != 0xffffffff
-	xmath string_entry_02 "string_entry - 1"
-	for n1 = 0 < string_entry
-		getarray dsn3 101 n1
-		putarray 102 string_entry_02 dsn3
-		math string_entry_02 - 1
-	next n1
-	for n2 = 0 < string_entry
-		getarray dsn4 102 n2
-		string directory_name_string + dsn4
-		string directory_name_string + /
-	next n2
-	putarray 27 x2 directory_name_string
-next x2
-
-for final_loop_01 = 0 < files2
-	math split_archive = 0
-	getarray file_offset 1 final_loop_01
-	getarray file_name_hash 2 final_loop_01
-	getarray file_size_01 11 final_loop_01
-	getarray previous_file_entry 12 final_loop_01
-	getarray incoming_file_entry 13 final_loop_01
-	getarray directory_entry_per_file 14 final_loop_01
-	getarray file_name 27 directory_entry_per_file
-	getarray file_timestamp 15 final_loop_01
-	getarray file_singular_name 16 final_loop_01
-	if bf_sign == 0x00475542
-		getarray file_type 17 final_loop_01
-	endif
-	string file_name + file_singular_name
-	callfunction bf_file_preparatory 1
-next final_loop_01
-
-startfunction bf_file_preparatory
-	if bf_ext == "bf"
-		math split_archive = 0
-	elif bf_ext == "bf0"
-		math split_archive = 1
-	elif bf_ext == "001"
-		math split_archive = 2
-	endif
-
-	if split_archive = 0
-		goto file_offset
-		get file_size_02 long
-		if file_size_01 == file_size_02
-			math file_size == file_size_02
-			math file_offset + 4
-			log file_name file_offset file_size
-		else
-			print " this script doesn't know what to do with this file \n %file_name% \n \n it'll be skipped for now "
+	get files1 long file_number
+	get folders1 long file_number
+	get bf_05 long file_number
+	get bf_06 long file_number
+	get bf_07 long file_number
+	get bf_08 long file_number
+	get skips1 long file_number
+	get file_indices long file_number
+	get flagship_file long file_number
+	math file_index_header_size = 0x18
+	goto 0x2c
+	putvarchr MEMORY_FILE2 file_index_header_size 0
+	xmath passes "file_index_header_size / 4"
+	math file_number = -2
+	callfunction decrypt_block 1
+	goto 0 file_number
+	for i = 0 < file_indices
+		log MEMORY_FILE3 0 0
+		log MEMORY_FILE4 0 0
+		log MEMORY_FILE5 0 0
+		get files2 long file_number
+		get folders2 long file_number
+		get file_listing_offset long file_number
+		get next_listing_offset long file_number
+		get bf_16 long file_number
+		get skips2 long file_number
+		xmath file_listing_size "files2 * 8"
+		xmath file_tab_offset "file_listing_offset + (skips1 * 8)"
+		xmath file_tab_size "files2 * entry_info_size_01"
+		xmath folder_tab_offset "file_tab_offset + (skips1 * entry_info_size_01)"
+		xmath folder_tab_size "folders2 * entry_info_size_02"
+		if bigfile_sign == 0x424947
+			log MEMORY_FILE3 file_listing_offset file_listing_size
+			math file_number = -3
+			callfunction initialize_file_listing 1
+			log MEMORY_FILE4 file_tab_offset file_tab_size
+			math file_number = -4
+			callfunction parse_file_tabs 1
+			log MEMORY_FILE5 folder_tab_offset folder_tab_size
+			math file_number = -5
+			callfunction parse_folder_tabs 1
+		elif bigfile_sign == 0x425547
+			goto file_listing_offset
+			putvarchr MEMORY_FILE3 file_listing_size 0
+			xmath passes "files2 * 4"
+			math file_number = -3
+			callfunction decrypt_block 1
+			goto 0 file_number
+			callfunction initialize_file_listing 1
+			goto file_tab_offset
+			putvarchr MEMORY_FILE4 file_tab_size 0
+			math file_number = -4
+			xmath passes "file_tab_size / 4"
+			callfunction decrypt_block 1
+			goto 0 file_number
+			callfunction parse_file_tabs 1
+			goto folder_tab_offset
+			putvarchr MEMORY_FILE5 folder_tab_size putvarchr
+			math file_number = -5
+			xmath passes "folder_tab_size / 4"
+			callfunction decrypt_block 1
+			goto 0 file_number
+			callfunction parse_folder_tabs 1
 		endif
-	elif split_archive = 1
-		if file_offset <= 0x1fffffff
-			math bf0_size = 0x20000000
-			xmath bf0_number "file_offset / bf0_size"
-			math file_offset_within_split_archive = file_offset
-		elif file_offset <= 0x2fffffff
-			math bf0_size = 0x10000000
-			xmath bf0_number "(file_offset / bf0_size) - 1"
-			xmath file_offset_within_split_archive "file_offset % 0x20000000"
-		elif file_offset >= 0x30000000
-			math bf0_size = 0x10000000
-			xmath bf0_number "(file_offset / bf0_size) - 1"
-			xmath file_offset_within_split_archive "file_offset % 0x10000000"
+		callfunction final_step 1
+		if next_listing_offset != 32bit_max_number
+			math next_listing_offset - file_index_header_size
+			goto next_listing_offset
+			putvarchr MEMORY_FILE2 file_index_header_size 0
+			xmath passes "file_index_header_size / 4"
+			math file_number = -2
+			callfunction decrypt_block 1
+			goto 0 file_number
 		endif
-		if bf0_number = 0
-			math bf0_backup_size = 0x20000000
-		elif bf0_number >= 1
-			math bf0_backup_size = 0x10000000
-		endif
-		putarray 103 bf0_number bf0_backup_size
-		string bf0_initial_loading_filename p "%s.bf%d" bf_name bf0_number
-		open fdse bf0_initial_loading_filename 1
-		goto file_offset_within_split_archive 1
-		get file_size_02 long 1
-		if file_size_01 == file_size_02
-			math file_size == file_size_02
-			math file_offset_within_split_archive + 4
-			xmath number_of_chunks_per_file_within_split_archive "((file_offset_within_split_archive + file_size) / bf0_backup_size) + 1"
-			xmath last_chunk "number_of_chunks_per_file_within_split_archive - 1"
-			math bf0_temp_number_01 = bf0_number
-			append
-			for chk_01 = 0 < number_of_chunks_per_file_within_split_archive
-				if chk_01 = 0
-					if number_of_chunks_per_file_within_split_archive == 1
-						math split_file_size == file_size
-					else
-						xmath split_file_size "bf0_backup_size - file_offset_within_split_archive"
-					endif
-					log file_name file_offset_within_split_archive split_file_size 1
-				else
-					math bf0_temp_number_01 + 1
-					xmath bf0_temp_number_02 "bf0_temp_number_01 - bf0_number"
-					xmath bf0_temp_size "bf0_temp_number_02 * bf0_backup_size"
-					string bf0_next_loading_filename p "%s.bf%d" bf_name bf0_temp_number_01
-					open fdse bf0_next_loading_filename 2
-					if chk_01 = last_chunk
-						xmath split_file_size "(file_offset_within_split_archive + file_size) - bf0_temp_size"
-					else
-						xmath split_file_size "bf0_backup_size % (file_offset_within_split_archive + file_size)"
-					endif
-					math file_offset_within_split_archive = 0
-					log file_name file_offset_within_split_archive split_file_size 2
-				endif
-			next chk_01
-			append
-		else
-			print " this script doesn't know what to do with this file \n %file_name% \n \n it'll be skipped for now "
-		endif
-	elif split_archive = 2
-		math bf_001_size = 0x2bc00000 # i only have the Xbox version of Peter Jackson's King Kong with me to confirm this
-	endif
+	next i
 endfunction
 
-startfunction extract
-	if bf_ext == "bf0"
-		if offset >= 0x20000000
-			math bf_bf0_size = 0x10000000
-		else
-			math bf_bf0_size = 0x20000000
-		endif
-		
-		if offset >= 0x30000000
-			xmath bf_num1 "(offset / 0x10000000) - 1"
-		else
-			xmath bf_num1 "(offset / 0x20000000)"
-		endif
-		xmath split_offset1 "(offset % bf_bf0_size) + 4"
-		xmath split_offset2 "split_offset1 + size"
-		xmath split_chunks "(split_offset2 / bf_bf0_size) + 1"
-		
-		string bf_load p "%s.bf%01d" bf_name bf_num1
-		open fdse bf_load 1
+startfunction initialize_file_listing
+	for i1 = 0 < files2
+		get file_01 long file_number
+		putarray 0 i1 file_01
+		get file_02 long file_number
+		putarray 1 i1 file_02
+	next i1
+endfunction
 
-		if split_chunks >= 2
-			if xored = 1
-				filexor ""
-			endif
-			
-			xmath last_chunk "split_chunks - 1"
-			
-			append
-			for x = 0 < split_chunks
-				if x = 0
-					xmath split_size1 "bf_bf0_size - split_offset1"
-					log finalname split_offset1 split_size1 1
-				else
-					math temp1_bf_num = bf_num1
-					math temp1_bf_num + 1
-					if bf_num1 >= 2
-						xmath temp2_bf_num "temp1_bf_num % bf_num1"
-					else
-						xmath temp2_bf_num "(temp1_bf_num % bf_num1) + 1"
-					endif
-					xmath temp_bf_size "(temp2_bf_num) * bf_bf0_size"
-					string bf_temp_load p "%s.bf%01d" bf_name temp1_bf_num
-					open fdse bf_temp_load 2
-					set split_offset1 long 0
-					if x = last_chunk
-						xmath split_size1 "split_offset2 - temp_bf_size"
-					else
-						xmath split_size1 "bf_bf0_size % split_offset2"
-					endif
-					log finalname split_offset1 split_size1 2
-				endif
-			next x
-			append
-			
-			if xored = 1
-				filexor "\xb3\x98\xcc\x66"
-			endif
+startfunction parse_file_tabs
+	for i1 = 0 < files2
+		get file_03 long file_number
+		putarray 2 i1 file_03
+		get file_04 long file_number
+		putarray 3 i1 file_04
+		get file_05 long file_number
+		putarray 4 i1 file_05
+		get file_06 long file_number
+		putarray 5 i1 file_06
+		get file_07 time file_number
+		putarray 6 i1 file_07
+		callfunction fetch_entry_name 1
+		set file_08 string entry_name
+		putarray 7 i1 file_08
+		if version == 0x24
+			get file_09 long file_number
+			putarray 8 i1 file_09
 		endif
-		
-		if xored = 0
-			if split_chunks <= 1
-				log finalname split_offset1 size 1
-			endif
-		elif xored = 1
-			if split_chunks <= 1
-				filexor ""
-				log finalname split_offset1 size 1
-				filexor "\xb3\x98\xcc\x66"
-			endif
+		if version == 0x2a
+			get file_09 long file_number
+			putarray 8 i1 file_09
+			getdstring file_10 0x20 file_number
+			putarray 9 i1 file_10
+			get file_10 long file_number
+			putarray 10 i1 file_09
 		endif
-	elif bf_ext == "001"
-		math bf_001_size == 0x2bc00000
-		xmath bf_num2 "(offset / bf_001_size) + 1"
-		xmath split_offset1 "(offset % bf_001_size) + 4"
-		xmath split_offset2 "split_offset1 + size"
-		xmath split_chunks "(split_offset2 / bf_001_size) + 1"
-		
-		string bf_load p "%s.%03d" bf_name bf_num2
-		open fdse bf_load 1
+	next i1
+endfunction
 
-		if split_chunks >= 2
-			if xored = 1
-				filexor ""
-			endif
-			
-			xmath last_chunk "split_chunks - 1"
-			
-			append
-			for x = 0 < split_chunks
-				if x = 0
-					xmath split_size1 "bf_001_size - split_offset1"
-					log finalname split_offset1 split_size1 1
-				else
-					math temp_bf_num = bf_num2
-					math temp_bf_num + 1
-					xmath temp_bf_size "((temp_bf_num % bf_num2) + 1) * bf_001_size"
-					string bf_temp_load p "%s.%03d" bf_name temp_bf_num
-					open fdse bf_temp_load 2
-					set split_offset1 long 0
-					if x = last_chunk
-						xmath split_size1 "split_offset2 - temp_bf_size"
-					else
-						xmath split_size1 "bf_001_size % split_offset2"
-					endif
-					log finalname split_offset1 split_size1 2
+startfunction parse_folder_tabs
+	for i2 = 0 < folders2
+		get folder_01 long file_number
+		putarray 32 i2 folder_01
+		get folder_02 long file_number
+		putarray 33 i2 folder_02
+		get folder_03 long file_number
+		putarray 34 i2 folder_03
+		get folder_04 long file_number
+		putarray 35 i2 folder_04
+		get folder_05 long file_number
+		putarray 36 i2 folder_05
+		callfunction fetch_entry_name 1
+		set folder_06 string entry_name
+		putarray 37 i2 folder_06
+	next i2
+endfunction
+
+startfunction final_step
+	for i2 = 0 < folders2
+		set full_folder_name string ""
+		getarray folder_01 32 i2
+		getarray next_folder 33 i2
+		getarray next_neighbor_folder 34 i2
+		getarray previous_neighbor_folder 35 i2
+		getarray previous_folder 36 i2
+		getarray folder_name 37 i2
+		math keyword_number = 0
+		putarray 64 keyword_number folder_name
+		math keyword_number + 1
+		if previous_folder != 32bit_max_number
+			for
+				getarray previous_folder 36 previous_folder
+				getarray folder_name 37 previous_folder
+				putarray 64 keyword_number folder_name
+				math keyword_number + 1
+				if previous_folder == 0
+					break
 				endif
-			next x
-			append
-			
-			if xored = 1
-				filexor "\xb3\x98\xcc\x66"
-			endif
+			next
 		endif
-		
-		if xored = 0
-			if split_chunks <= 1
-				log finalname split_offset1 size 1
-			endif
-		elif xored = 1
-			if split_chunks <= 1
-				filexor ""
-				log finalname split_offset1 size 1
-				filexor "\xb3\x98\xcc\x66"
-			endif
+		math max_names_for_this_folder = keyword_number
+		xmath name_startoff "keyword_number - 1"
+		for nk = 0 < max_names_for_this_folder
+			getarray folder_name 64 name_startoff
+			math name_startoff - 1
+			string full_folder_name + folder_name
+			string full_folder_name + "/"
+		next nk
+		putarray 38 i2 full_folder_name
+	next i2
+
+	for i1 = 0 < files2
+		set full_file_name string ""
+		getarray file_offset 0 i1
+		getarray file_name_hash 1 i1
+		getarray file_size 2 i1
+		getarray next_neighbor_file 3 i1
+		getarray previous_neighbor_file 4 i1
+		getarray folder_number 5 i1
+		getarray full_folder_name 38 folder_number
+		getarray file_time_record 6 i1
+		getarray file_name 7 i1
+		if version == 0x24
+			getarray file_09 8 i1
 		endif
-	else
-		math offset + 4
-		if xored = 0
-			log finalname offset size
-		elif xored = 1
-			filexor ""
-			log finalname offset size
-			filexor "\xb3\x98\xcc\x66"
+		if version == 0x2a
+			getarray file_09 8 i1
+			getarray file_sha1 9 i1
+			getarray file_11 10 i1
 		endif
-	endif
+		string full_file_name + full_folder_name
+		string full_file_name + file_name
+		putarray 11 i1 full_file_name
+		goto file_offset
+		get real_file_size long
+		savepos real_file_offset
+		log full_file_name real_file_offset real_file_size
+	next i1
+endfunction
+
+startfunction decrypt_bigfile_header
+	goto 0x10
+	get key long
+	goto 4
+	log MEMORY_FILE 4 0x28
+	xmath passes "0x28 / 4"
+	math file_number = -1
+	callfunction decrypt_block 1
+	goto 0 file_number
+	callfunction read_bigfile_header 1
+endfunction
+
+startfunction decrypt_block
+	for pass = 0 < passes
+		get target long
+		xmath decoded "target ^ key"
+		put decoded long file_number
+	next pass
+endfunction
+
+startfunction fetch_entry_name
+	getdstring entry_name 0x40 file_number
 endfunction
