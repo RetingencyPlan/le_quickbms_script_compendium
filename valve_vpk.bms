@@ -61,6 +61,8 @@ if minor_version == 3
 	putarray 0 21 "romanian"
 	putarray 0 22 "turkish"
 	comtype lzham
+	# (todo) Titanfall has several references to this particular compression algorithm
+	# you are seeing above, but i assure you that's not what the game actually uses at all.
 	math folders = 0
 	math files = 0
 	math chunks_per_file = 0
@@ -130,7 +132,8 @@ for i = 0
 								if compressed_chunk_size == original_chunk_size
 									log file_name file_offset_from_pak_number original_chunk_size 1
 								else
-									clog file_name file_offset_from_pak_number compressed_chunk_size original_chunk_size 1
+									# (todo) chunk isn't decompressed with "comtype lzham"
+									#clog file_name file_offset_from_pak_number compressed_chunk_size original_chunk_size 1
 								endif
 							next l
 							append
