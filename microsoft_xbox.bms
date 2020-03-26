@@ -136,36 +136,16 @@ startfunction parse_mxm
 			get d6 byte current_file_number
 			callfunction mxm_helper_01 1
 			if d6 != 0
-				# (todo) massive clean-up here...
-				if d6 <= 2
-					math d7 = 2		
-				elif d6 <= 6
-					math d7 = 6
-				elif d6 <= 10
-					math d7 = 10
-				elif d6 <= 14
-					math d7 = 14
-				elif d6 <= 18
-					math d7 = 18
-				elif d6 <= 22
-					math d7 = 22
-				elif d6 <= 26
-					math d7 = 26
-				elif d6 <= 30
-					math d7 = 30
-				elif d6 <= 34
-					math d7 = 34
-				elif d6 <= 38
-					math d7 = 38
-				elif d6 <= 42
-					math d7 = 42
-				elif d6 <= 46
-					math d7 = 46
-				elif d6 <= 50
-					math d7 = 50
+				xmath d6_1_1 "(d6 - 2) / 4"
+				xmath d6_1_2 "(d6 - 2) % 4"
+				if d6_1_2 != 0
+					math d6_1_1 + 1
 				endif
+				print "div string size %d6_1_1%"
+				xmath d6_2 "(d6_1_1 * 4) + 2"
+				print "pad string size %d6_2%"
 				getdstring dn d6 current_file_number
-				xmath d8 "d7 - d6"
+				xmath d8 "d6_2 - d6"
 				getdstring dp d8 current_file_number
 				callfunction mxm_helper_01 1
 			endif
@@ -258,7 +238,7 @@ startfunction parse_mxm
 				endif
 				math name_number + 1
 			next
-			log file_name file_offset file_size
+			#log file_name file_offset file_size
 		endif
 		if i3 == last_entry || final_directory_entries = 0 || i3 == final_directory_entries
 			if directory_number != 0
