@@ -502,7 +502,7 @@ startfunction final_step
 								if size = 0
 									xmath chunk_size "split_bf_size - chunk_offset"
 								endif
-								log full_file_name chunk_offset chunk_size
+								log full_file_name chunk_offset chunk_size 2
 								math size + chunk_size
 								math chunk_offset = 0
 								xmath chunk_size "offset_passthrough - (next_bf_offset - logical_offset)"
@@ -513,7 +513,7 @@ startfunction final_step
 							next
 							append
 						else
-							log full_file_name split_file_offset real_file_size
+							log full_file_name split_file_offset real_file_size 1
 						endif
 						break
 					endif
