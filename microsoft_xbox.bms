@@ -1,19 +1,39 @@
-math temp = 1
-math temp * 16
-if temp = 0
-	print " this script was designed for clean Xbox DVD dumps that weight at about 7.28GB max. \n just use quickbms_4gb_files.exe "
-	cleanexit
-endif
-
 get dvd_size asize
-if dvd_size != 0x1d26a8000
-	print " this script was designed for Redump releases (or at the very least accurate dumps) of Xbox discs. \n sorry about that. "
-	cleanexit
+get dvd_name filename
+
+math xbox_type = 0
+
+if dvd_size = 0xa290000
+	if dvd_name != "Data0000"
+		print " Data0000 is what you want to use the script with instead. "
+		cleanexit
+	else
+		print " these types will be handled one day. "
+		cleanexit
+	endif
+	math xbox_type = 1
 endif
 
-math xbox_file_system_base_number = 0x30600
-xmath goto_01 "(xbox_file_system_base_number + 0x20) << 11"
-goto goto_01
+if xbox_type = 0
+	math xbox_file_system_base_number = 0x30600
+	putarray 0 0 0x30600 # Xbox
+	putarray 0 1 0x1fb20 # Xbox 360
+	math padding_number = 0x20
+	for i = 0 < 2
+		getarray xbox_file_system_base_number 0 i
+		xmath goto_01 "(xbox_file_system_base_number + padding_number) << 11"
+		goto goto_01
+		getdstring is_mxm 0x14
+		if is_mxm == "MICROSOFT*XBOX*MEDIA"
+			math xbox_file_system_starting_offset = goto_01
+			break
+		endif
+	next i
+endif
+if xbox_type = 1
+	math xbox_file_system_base_number = 4
+endif
+goto xbox_file_system_starting_offset
 for i = 0 < 2
 	getdstring mxm_01 0x14
 	if mxm_01 != "MICROSOFT*XBOX*MEDIA"
@@ -25,15 +45,27 @@ for i = 0 < 2
 		get timecode time64
 		getdstring dummy_data 0x7c8
 	elif i = 1
-		getdstring command 0x20
-		get info_related_to_command_01 long
-		get info_related_to_command_02 long
-		get info_related_to_command_03 long
-		get info_related_to_command_04 long
+		if xbox_type == 0
+			getdstring command 0x20
+			get info_related_to_command_01 long
+			get info_related_to_command_02 long
+			get info_related_to_command_03 long
+			get info_related_to_command_04 long
+		endif
 	endif
 next i
 xmath goto_02 "(first_directory_sector + xbox_file_system_base_number) << 11"
-math current_directory_info_offset = goto_02
+math current_file_number = 0
+if xbox_type = 1
+	math target_offset = goto_02
+	callfunction mxm_helper_02 1
+endif
+if xbox_type < 1
+	math current_directory_info_offset = goto_02
+endif
+if xbox_type = 1
+	math current_directory_info_offset = data_offset_for_single_spot
+endif
 xmath modulus_test "first_directory_size % (1 << 11)"
 if modulus_test = 0
 	math current_directory_size = first_directory_size
@@ -60,12 +92,14 @@ for j = 0 <= 256
 	putarray 106 j 0
 	putarray 107 j 0
 	putarray 108 j 0
-	putarray 109 j ""
+	putarray 109 j 0
+	putarray 110 j 0
+	putarray 111 j ""
 next j
 callfunction parse_mxm 1
 
 startfunction parse_mxm
-	goto current_directory_info_offset
+	goto current_directory_info_offset current_file_number
 	math current_directory_entry = 0
 	for i2 = 0
 		math dont_put_this_into_array = 0
@@ -73,14 +107,14 @@ startfunction parse_mxm
 		if i2 = 0
 			math directory_entry_to_fetch_from = overall_directory_entry
 		endif
-		get d1 short
+		get d1 short current_file_number
 		if d1 == 0xffff
 			math dont_put_this_into_array = 1
 		else
 			math dont_put_this_into_array = 0
 		endif
 		callfunction mxm_helper_01 1
-		get d2 short
+		get d2 short current_file_number
 		if d2 == 0xffff
 			math dont_put_this_into_array = 1
 		else
@@ -88,9 +122,9 @@ startfunction parse_mxm
 		endif
 		callfunction mxm_helper_01 1
 		if dont_put_this_into_array = 0
-			get d3 long
-			get d4 long
-			get d5 byte
+			get d3 long current_file_number
+			get d4 long current_file_number
+			get d5 byte current_file_number
 			xmath flag_01 "d5 & 1"
 			xmath flag_02 "(d5 >> 1) & 1"
 			xmath flag_03 "(d5 >> 2) & 1"
@@ -99,9 +133,10 @@ startfunction parse_mxm
 			xmath flag_06 "(d5 >> 5) & 1"
 			xmath flag_07 "(d5 >> 6) & 1"
 			xmath flag_08 "(d5 >> 7) & 1"
-			get d6 byte
+			get d6 byte current_file_number
 			callfunction mxm_helper_01 1
 			if d6 != 0
+				# (todo) massive clean-up here...
 				if d6 <= 2
 					math d7 = 2		
 				elif d6 <= 6
@@ -129,9 +164,9 @@ startfunction parse_mxm
 				elif d6 <= 50
 					math d7 = 50
 				endif
-				getdstring dn d6
+				getdstring dn d6 current_file_number
 				xmath d8 "d7 - d6"
-				getdstring dp d8
+				getdstring dp d8 current_file_number
 				callfunction mxm_helper_01 1
 			endif
 			putarray 1 overall_directory_entry d1
@@ -173,9 +208,14 @@ startfunction parse_mxm
 			math directory_number + 1
 			math previous_directory_entry_number = directory_entry_to_fetch_from
 			math current_directory_size = entry_size
-			xmath current_directory_info_offset "(entry_offset + xbox_file_system_base_number) << 11"
+			callfunction mxm_helper_03 1
+			math current_directory_info_offset = fully_realized_entry_offset
 			putarray 101 directory_number current_directory_info_offset
 			putarray 102 directory_number current_directory_size
+			if xbox_type = 1
+				putarray 109 directory_number data_number_for_single_spot
+				putarray 110 directory_number data_offset_for_single_spot
+			endif
 			putarray 105 directory_number previous_directory_entry_number
 			xmath future_directory_to_process "current_directory_to_process + 1"
 			putarray 106 directory_number future_directory_to_process
@@ -184,16 +224,27 @@ startfunction parse_mxm
 			math next_parsing_directory_entry = i3
 			putarray 108 directory_number next_parsing_directory_entry
 			math parsing_directory_entry = 0
-			putarray 109 directory_number entry_name
+			putarray 111 directory_number entry_name
 			math current_directory_to_process + 1
+			if xbox_type = 1
+				math target_offset = current_directory_info_offset
+				callfunction mxm_helper_02 1
+				math current_file_number = data_number_for_single_spot
+				math current_directory_info_offset = data_offset_for_single_spot
+			endif
 			callfunction parse_mxm 1
 		else
-			xmath file_offset "(entry_offset + xbox_file_system_base_number) << 11"
+			callfunction mxm_helper_03 1
+			math file_offset = fully_realized_entry_offset
 			math file_size = entry_size
+			if xbox_type = 1
+				math target_offset = file_offset
+				callfunction mxm_helper_02 1
+			endif
 			set file_name string ""
 			math name_number = 0
 			for
-				getarray previous_entry_name 109 name_number
+				getarray previous_entry_name 111 name_number
 				string file_name + previous_entry_name
 				if previous_entry_name == ""
 					if name_number != 0
@@ -229,7 +280,9 @@ startfunction parse_mxm
 				putarray 106 directory_number 0
 				putarray 107 directory_number 0
 				putarray 108 directory_number 0
-				putarray 109 directory_number ""
+				putarray 109 directory_number 0
+				putarray 110 directory_number 0
+				putarray 111 directory_number ""
 				math directory_number - 1
 			endif
 		endif
@@ -237,9 +290,36 @@ startfunction parse_mxm
 endfunction
 
 startfunction mxm_helper_01
-	savepos p1
+	savepos p1 current_file_number
 	xmath i2 "p1 - current_directory_info_offset"
 	if i2 >= current_directory_size
 		break
 	endif
+endfunction
+
+startfunction mxm_helper_02
+	if xbox_type = 1
+		math data_size = 0x14520
+		xmath data_number_for_single_spot "(target_offset >> 11) / data_size"
+		string data_name p "Data%04d" data_number_for_single_spot
+		open FDSE data_name data_number_for_single_spot
+		xmath data_offset_for_single_spot "target_offset % (data_size << 11)"
+	endif
+	if is_directory = 1
+		math current_file_number = data_number_for_single_spot
+	endif
+	math separate_file_number = data_number_for_single_spot
+endfunction
+
+startfunction mxm_helper_03
+	math padding_number = 0
+	if xbox_type = 1
+		if i3 != 0
+			# in some cases this padding number can be defined per title.
+			# (todo) could use three previous folders as workarounds for this one...
+			math padding_number = 0x22
+			#math padding_number = 0x132
+		endif
+	endif
+	xmath fully_realized_entry_offset "((entry_offset + xbox_file_system_base_number) + padding_number) << 11"
 endfunction
