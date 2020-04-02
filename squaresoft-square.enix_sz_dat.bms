@@ -339,7 +339,7 @@ if EXISTS != 0
 	log MEMORY_FILE 0 0
 	math dat_chunk_offset = 0
 	for i = 0
-		putarray 0 0 dat_chunk_offset
+		print " offset %dat_chunk_offset%"
 		get dat_chunk_size long 1
 		if dat_chunk_size = 0
 			break
@@ -362,17 +362,20 @@ if EXISTS != 0
 					if chunk_track_info_04 == 0xffffffff
 						math camera_coordinates_size = chunk_track_info_01
 						string camera_coordinates_file_name p "%s.cam" NAME
-						log camera_coordinates_file_name raw_track_offset_within_chunk camera_coordinates_size
+						append
+						log camera_coordinates_file_name raw_track_offset_within_chunk camera_coordinates_size MEMORY_FILE
+						append
+						math dat_chunk_position + chunk_track_info_01
 					endif
 					endif
 					endif
 				elif chunk_track_info_01 == 0x40
 					math sound_type = 2
-					#callfunction sound_handle 1
+					callfunction sound_handle 1
 					math dat_chunk_position + chunk_track_info_03
 				elif chunk_track_info_01 >= 0x50 && chunk_track_info_01 <= 0x51
 					math sound_type = 3
-					#callfunction sound_handle 1
+					callfunction sound_handle 1
 					math dat_chunk_position + chunk_track_info_03
 				else
 					if chunk_track_info_01 == chunk_track_info_02
@@ -392,33 +395,19 @@ if EXISTS != 0
 					else
 						if chunk_is_zero == 0
 							xmath frame_type "chunk_track_info_03 & 1"
-							xmath video_width "((chunk_track_info_03 >> 1) & 0x7ff) + 0xc0"
-							xmath video_height "(chunk_track_info_03 >> 20) & 0xfff"
+							xmath pv "(chunk_track_info_03 & 0xffe) - (chunk_track_info_03 >> 12) & 0xff"
+							xmath ph "(chunk_track_info_03 >> 20) & 0xfff"
 							if frame_type = 0
+								math temporal_sequence_number = 0
 								print " I-picture frame "
 							elif frame_type = 1
-								print " P-picture frame"
+								math temporal_sequence_number + 1
+								print " P-picture frame "
 							endif
-							/*
-							if video_frame_is_compressed = 0
-								log MEMORY_FILE2 dat_chunk_position chunk_track_info_01 MEMORY_FILE
-								math base_frame_size = chunk_track_info_01
-							else
-								math current_frame_size == chunk_track_info_01
-								goto 0 MEMORY_FILE2
-								log MEMORY_FILE3 0 0
-								goto 0 MEMORY_FILE3
-								for vc = 0 < current_frame_size
-									get control_byte byte MEMORY_FILE
-									xmath byte_length "(control_byte >> 4) & 0xf"
-									putarray 0 0 byte_length
-									xmath cb1 "control_byte & 1"
-									putarray 0 0 cb1
-									if control_byte != 0
-									endif
-								next vc
-							endif
-							*/
+							string res_in_str p "%dx%d" ph pv
+							print " frame resolution - %res_in_str% "
+							math raw_frame_size = chunk_track_info_01
+							math macroblocks = chunk_track_info_02
 						endif
 					endif
 					math dat_chunk_position + chunk_track_info_01
@@ -427,280 +416,6 @@ if EXISTS != 0
 			math dat_chunk_offset + dat_chunk_size
 		endif
 	next i
-
-	startfunction sound_handle
-		if sound_type = 1
-			math is_vag = 0
-			math is_pcm = 0
-			math is_pcm_and_ac3 = 0
-			math bilingual = 0
-			# PS-ADPCM/VAG-like audio codec with 16 extra bytes each chunk
-			if chunk_track_info_01 == 0x1c30
-				math is_vag = 1
-				math vag_chunksize = chunk_track_info_01
-			endif
-			if chunk_track_info_01 == 0x3860
-				math is_vag = 1
-				math bilingual = 1
-				math vag_chunksize_per_language = 0x1c30
-			endif
-			# individual PCM16 chunks
-			if chunk_track_info_01 == 0x3c00
-				math is_pcm = 1
-				math pcm_chunksize = chunk_track_info_01
-			endif
-			if chunk_track_info_01 == 0x6400
-				math is_pcm = 1
-				math pcm_chunksize = chunk_track_info_01
-			endif
-			if chunk_track_info_01 == 0x7800
-				math is_pcm = 1
-				math bilingual = 1
-				math pcm_chunksize_per_language = 0x3c00
-			endif
-			if chunk_track_info_01 == 0xc800
-				math is_pcm = 1
-				math bilingual = 1
-				math pcm_chunksize_per_language = 0x6400
-			endif
-			# PCM16+AC-3 chunks
-			if chunk_track_info_01 == 0x5110
-				math is_pcm_and_ac3 = 1
-				math pcm_chunksize = 0x3c00
-				math ac3_chunksize = 0x1510
-			endif
-			if chunk_track_info_01 == 0x8000
-				math is_pcm_and_ac3 = 1
-				math pcm_chunksize = 0x6400
-				math ac3_chunksize = 0x1c00
-			endif
-			if chunk_track_info_01 == 0x8400
-				math is_pcm_and_ac3 = 1
-				math pcm_chunksize = 0x6400
-				math ac3_chunksize = 0x2000
-			endif
-			if chunk_track_info_01 == 0x8700
-				math is_pcm_and_ac3 = 1
-				math pcm_chunksize = 0x6400
-				math ac3_chunksize = 0x2300
-			endif
-			if chunk_track_info_01 == 0xa220
-				math is_pcm_and_ac3 = 1
-				math bilingual = 1
-				math pcm_chunksize_per_language = 0x3c00
-				math ac3_chunksize_per_language = 0x1510
-			endif
-			if chunk_track_info_01 == 0x10800
-				math is_pcm_and_ac3 = 1
-				math bilingual = 1
-				math pcm_chunksize_per_language = 0x6400
-				math ac3_chunksize_per_language = 0x2000
-			endif
-			if is_vag = 1
-				append
-				if bilingual = 0
-					string vag_name p "%s.vag" NAME
-					log vag_name raw_track_offset_within_chunk vag_chunksize MEMORY_FILE
-				elif bilingual = 1
-					math vag_language_track_offset_within_chunk = raw_track_offset_within_chunk
-					for language = 0 < 2
-						xmath language2 "language + 1"
-						string vag_name p "%s[%02d].vag" NAME language2
-						log vag_name vag_language_track_offset_within_chunk vag_chunksize_per_language MEMORY_FILE
-						math vag_language_track_offset_within_chunk + vag_chunksize_per_language
-					next language
-				endif
-				append
-			endif
-			if is_pcm = 1
-				append
-				if bilingual = 0
-					string pcm_name p "%s.pcm" NAME
-					log pcm_name raw_track_offset_within_chunk pcm_chunksize MEMORY_FILE
-				elif bilingual = 1
-					math pcm_language_track_offset_within_chunk = raw_track_offset_within_chunk
-					for language = 0 < 2
-						xmath language2 "language + 1"
-						string pcm_name p "%s[%02d].pcm" NAME language2
-						log pcm_name pcm_language_track_offset_within_chunk pcm_chunksize_per_language MEMORY_FILE
-						math pcm_language_track_offset_within_chunk + pcm_chunksize_per_language
-					next language
-				endif
-				append
-			endif
-			if is_pcm_and_ac3 = 1
-				append
-				if bilingual = 0
-					string pcm_name p "%s.pcm" NAME
-					log pcm_name raw_track_offset_within_chunk pcm_chunksize MEMORY_FILE
-					string ac3_name p "%s.ac3" NAME
-					xmath ac3_offset "pcm_chunksize + raw_track_offset_within_chunk"
-					xmath ac3_last_offset "(ac3_offset + ac3_chunksize) - 8"
-					for
-						goto ac3_last_offset MEMORY_FILE
-						get zero_byte_01 long MEMORY_FILE
-						get zero_byte_02 long MEMORY_FILE
-						if zero_byte_02 = 0
-							math ac3_chunksize - 4
-						else
-							break
-						endif
-						if zero_byte_01 = 0
-							math ac3_chunksize - 4
-						else
-							break
-						endif
-						math ac3_last_offset - 8
-					next
-					log ac3_name ac3_offset ac3_chunksize MEMORY_FILE
-				elif bilingual = 1
-					math pcm_language_track_offset_within_chunk = raw_track_offset_within_chunk
-					for language = 0 < 2
-						xmath language2 "language + 1"
-						string pcm_name p "%s[%02d].pcm" NAME language2
-						putarray 1 language pcm_name
-						putarray 3 language pcm_language_track_offset_within_chunk
-						math pcm_language_track_offset_within_chunk + pcm_chunksize_per_language
-					next language
-					math ac3_language_track_offset_within_chunk = pcm_language_track_offset_within_chunk
-					for language = 0 < 2
-						xmath language2 "language + 1"
-						string ac3_name p "%s[%02d].ac3" NAME language2
-						putarray 2 language ac3_name
-						putarray 4 language ac3_language_track_offset_within_chunk
-						math ac3_language_track_offset_within_chunk + ac3_chunksize_per_language
-					next language
-					for language = 0 < 2
-						getarray pcm_name 1 language
-						getarray ac3_name 2 language
-						getarray pcm_language_track_offset_within_chunk 3 language
-						getarray ac3_language_track_offset_within_chunk 4 language
-						log pcm_name pcm_language_track_offset_within_chunk pcm_chunksize_per_language MEMORY_FILE
-						math ac3_actual_chunksize = ac3_chunksize_per_language
-						xmath ac3_last_offset "(ac3_language_track_offset_within_chunk + ac3_chunksize_per_language) - 8"
-						for
-							goto ac3_last_offset MEMORY_FILE
-							get zero_byte_01 long MEMORY_FILE
-							get zero_byte_02 long MEMORY_FILE
-							if zero_byte_02 = 0
-								math ac3_actual_chunksize - 4
-							else
-								break
-							endif
-							if zero_byte_01 = 0
-								math ac3_actual_chunksize - 4
-							else
-								break
-							endif
-							math ac3_last_offset - 8
-						next
-						log ac3_name ac3_language_track_offset_within_chunk ac3_actual_chunksize MEMORY_FILE
-					next language
-				endif
-				append
-			endif
-		elif sound_type = 2
-			append
-			string pcm_name p "%s.adpcm" NAME
-			log pcm_name raw_track_offset_within_chunk chunk_track_info_02 MEMORY_FILE
-			if chunk_track_info_04 != 0
-				xmath ac3_offset "(chunk_track_info_03 - chunk_track_info_04) + raw_track_offset_within_chunk"
-				string ac3_name p "%s.ac3" NAME
-				log ac3_name ac3_offset chunk_track_info_04 MEMORY_FILE
-			endif
-			append
-		elif sound_type = 3
-			log MEMORY_FILE2 raw_track_offset_within_chunk chunk_track_info_03 MEMORY_FILE
-			callfunction process_compressed_audio_chunk 1
-			append
-			if decompressed_size == chunk_track_info_02
-				string pcm_name p "%s.adpcm" NAME
-				log pcm_name 0 chunk_track_info_02 MEMORY_FILE3
-				log MEMORY_FILE3 0 0
-				if chunk_track_info_04 != 0
-					xmath ac3_offset "(chunk_track_info_03 - chunk_track_info_04) + raw_track_offset_within_chunk"
-					string ac3_name p "%s.ac3" NAME
-					log ac3_name ac3_offset chunk_track_info_04 MEMORY_FILE
-				endif
-			endif
-			append
-		endif
-	endfunction
-	
-	startfunction process_compressed_audio_chunk
-		get compression_level byte MEMORY_FILE2
-		if compression_level >= 1 && compression_level <= 2
-		endif
-		get original_size long MEMORY_FILE2
-		log MEMORY_FILE3 0 0
-		math bytes_written = 0
-		xmath full_size "chunk_track_info_03 - chunk_track_info_04"
-		do
-			get control_byte byte MEMORY_FILE2
-			if control_byte <= 0x7d
-				for j = 0 < control_byte
-					goto bytes_written MEMORY_FILE3
-					get bytes_to_write byte MEMORY_FILE2
-					put bytes_to_write byte MEMORY_FILE3
-					math bytes_written + 1
-				next j
-			elif control_byte == 0x7e
-				get bytes_to_write byte MEMORY_FILE2
-				math bytes_to_write + 4
-				get source_byte_to_write byte MEMORY_FILE2
-				for j = 0 < bytes_to_write
-					goto bytes_written MEMORY_FILE3
-					put source_byte_to_write byte MEMORY_FILE3
-					math bytes_written + 1
-				next j
-			elif control_byte == 0x7f
-				get bytes_to_write short MEMORY_FILE2
-				get source_byte_to_write byte MEMORY_FILE2
-				for j = 0 < bytes_to_write
-					goto bytes_written MEMORY_FILE3
-					put source_byte_to_write byte MEMORY_FILE3
-					math bytes_written + 1
-				next j
-			elif control_byte >= 0x80
-				xmath additional_control_byte_01 "((control_byte & 0x7f) >> 3) + 3"
-				if compression_level == 2
-					if additional_control_byte_01 >= 5
-						xmath additional_control_byte_03 "((additional_control_byte_01 - 5) >> 1) + 1"
-						math additional_control_byte_01 - additional_control_byte_03
-					endif
-				endif
-				if compression_level == 1
-					xmath additional_control_byte_02 "control_byte & 0x07"
-				elif compression_level == 2
-					xmath additional_control_byte_02 "control_byte & 0x0f"
-				endif
-				if additional_control_byte_02 >= 0x08
-					math additional_control_byte_01 - 1
-				endif
-				get previous_bytes byte MEMORY_FILE2
-				if additional_control_byte_02 == 0
-					xmath byte_recovery_position "(bytes_written - previous_bytes) - 1"
-				else
-					xmath byte_recovery_position "(bytes_written - previous_bytes) - ((additional_control_byte_02 << 8) + 1)"
-				endif
-				for j = 0 < additional_control_byte_01
-					if byte_recovery_position >= 0
-						goto byte_recovery_position MEMORY_FILE3
-						get recurring_bytes byte MEMORY_FILE3
-					else
-						math recurring_bytes = 0
-					endif
-					goto bytes_written MEMORY_FILE3
-					put recurring_bytes byte MEMORY_FILE3
-					math bytes_written + 1
-					math byte_recovery_position + 1
-				next j
-			endif
-			savepos current_position MEMORY_FILE2
-		while current_position < full_size
-		get decompressed_size asize MEMORY_FILE3
-		log MEMORY_FILE2 0 0
-	endfunction
 else
 	# "single" .DAT movies
 	# ---
@@ -738,21 +453,12 @@ else
 		endif
 		savepos chunk_position
 		xmath total_macroblocks "(height / 16) * (width / 16)"
-		putarray 0 0 total_macroblocks
 		log MEMORY_FILE2 0 0
 		do
 			goto chunk_position
 			if dat_03 == 0xff
 				get chunk_size long
 				get frames_within_chunk long
-				savepos raw_video_frame_offset
-				log MEMORY_FILE raw_video_frame_offset chunk_size
-				goto 0 MEMORY_FILE
-				for f = 0 < frames_within_chunk
-					get flag byte MEMORY_FILE
-					for mb = 0 < total_macroblocks
-					next mb
-				next f
 				math chunk_position + chunk_size
 				math chunk_position + 8
 			endif
@@ -801,8 +507,6 @@ else
 				log MEMORY_FILE 0 0
 				log MEMORY_FILE2 0 0
 			else
-				xmath total_macroblocks "(height / 16) * (width / 16)"
-				putarray 0 0 total_macroblocks
 				for i = 0 < total_number_of_chunks
 					getarray full_chunk_offset 1 i
 					getarray full_chunk_size 2 i
@@ -875,6 +579,327 @@ else
 		while chunk_position < DAT_SIZE
 	endif
 endif
+
+startfunction sound_handle
+	if sound_type = 1
+		math is_vag = 0
+		math is_pcm = 0
+		math is_pcm_and_ac3 = 0
+		math bilingual = 0
+		# PS-ADPCM/VAG-like audio codec with 16 extra bytes each chunk
+		if chunk_track_info_01 == 0x1c30
+			math is_vag = 1
+			math vag_chunksize = chunk_track_info_01
+		endif
+		if chunk_track_info_01 == 0x3860
+			math is_vag = 1
+			math bilingual = 1
+			math vag_chunksize_per_language = 0x1c30
+		endif
+		# individual PCM16 chunks
+		if chunk_track_info_01 == 0x3c00
+			math is_pcm = 1
+			math pcm_chunksize = chunk_track_info_01
+		endif
+		if chunk_track_info_01 == 0x6400
+			math is_pcm = 1
+			math pcm_chunksize = chunk_track_info_01
+		endif
+		if chunk_track_info_01 == 0x7800
+			math is_pcm = 1
+			math bilingual = 1
+			math pcm_chunksize_per_language = 0x3c00
+		endif
+		if chunk_track_info_01 == 0xc800
+			math is_pcm = 1
+			math bilingual = 1
+			math pcm_chunksize_per_language = 0x6400
+		endif
+		# PCM16+AC-3 chunks
+		if chunk_track_info_01 == 0x5110
+			math is_pcm_and_ac3 = 1
+			math pcm_chunksize = 0x3c00
+			math ac3_chunksize = 0x1510
+		endif
+		if chunk_track_info_01 == 0x8000
+			math is_pcm_and_ac3 = 1
+			math pcm_chunksize = 0x6400
+			math ac3_chunksize = 0x1c00
+		endif
+		if chunk_track_info_01 == 0x8400
+			math is_pcm_and_ac3 = 1
+			math pcm_chunksize = 0x6400
+			math ac3_chunksize = 0x2000
+		endif
+		if chunk_track_info_01 == 0x8700
+			math is_pcm_and_ac3 = 1
+			math pcm_chunksize = 0x6400
+			math ac3_chunksize = 0x2300
+		endif
+		if chunk_track_info_01 == 0xa220
+			math is_pcm_and_ac3 = 1
+			math bilingual = 1
+			math pcm_chunksize_per_language = 0x3c00
+			math ac3_chunksize_per_language = 0x1510
+		endif
+		if chunk_track_info_01 == 0x10800
+			math is_pcm_and_ac3 = 1
+			math bilingual = 1
+			math pcm_chunksize_per_language = 0x6400
+			math ac3_chunksize_per_language = 0x2000
+		endif
+		if is_vag = 1
+			if bilingual = 0
+				append
+				string vag_name p "%s.vag" NAME
+				log vag_name raw_track_offset_within_chunk vag_chunksize MEMORY_FILE
+				append
+			elif bilingual = 1
+				math vag_language_track_offset_within_chunk = raw_track_offset_within_chunk
+				append
+				for language = 0 < 2
+					xmath language2 "language + 1"
+					string vag_name p "%s[%02d].vag" NAME language2
+					log vag_name vag_language_track_offset_within_chunk vag_chunksize_per_language MEMORY_FILE
+					math vag_language_track_offset_within_chunk + vag_chunksize_per_language
+				next language
+				append
+			endif
+		endif
+		if is_pcm = 1
+			append
+			if bilingual = 0
+				string pcm_name p "%s.pcm" NAME
+				log pcm_name raw_track_offset_within_chunk pcm_chunksize MEMORY_FILE
+			elif bilingual = 1
+				math pcm_language_track_offset_within_chunk = raw_track_offset_within_chunk
+				for language = 0 < 2
+					xmath language2 "language + 1"
+					string pcm_name p "%s[%02d].pcm" NAME language2
+					log pcm_name pcm_language_track_offset_within_chunk pcm_chunksize_per_language MEMORY_FILE
+					math pcm_language_track_offset_within_chunk + pcm_chunksize_per_language
+				next language
+			endif
+			append
+		endif
+		if is_pcm_and_ac3 = 1
+			append
+			if bilingual = 0
+				string pcm_name p "%s.pcm" NAME
+				log pcm_name raw_track_offset_within_chunk pcm_chunksize MEMORY_FILE
+				string ac3_name p "%s.ac3" NAME
+				xmath ac3_offset "pcm_chunksize + raw_track_offset_within_chunk"
+				xmath ac3_last_offset "(ac3_offset + ac3_chunksize) - 8"
+				for
+					goto ac3_last_offset MEMORY_FILE
+					get zero_byte_01 long MEMORY_FILE
+					get zero_byte_02 long MEMORY_FILE
+					if zero_byte_02 = 0
+						math ac3_chunksize - 4
+					else
+						break
+					endif
+					if zero_byte_01 = 0
+						math ac3_chunksize - 4
+					else
+						break
+					endif
+					math ac3_last_offset - 8
+				next
+				log ac3_name ac3_offset ac3_chunksize MEMORY_FILE
+			elif bilingual = 1
+				math pcm_language_track_offset_within_chunk = raw_track_offset_within_chunk
+				for language = 0 < 2
+					xmath language2 "language + 1"
+					string pcm_name p "%s[%02d].pcm" NAME language2
+					putarray 1 language pcm_name
+					putarray 3 language pcm_language_track_offset_within_chunk
+					math pcm_language_track_offset_within_chunk + pcm_chunksize_per_language
+				next language
+				math ac3_language_track_offset_within_chunk = pcm_language_track_offset_within_chunk
+				for language = 0 < 2
+					xmath language2 "language + 1"
+					string ac3_name p "%s[%02d].ac3" NAME language2
+					putarray 2 language ac3_name
+					putarray 4 language ac3_language_track_offset_within_chunk
+					math ac3_language_track_offset_within_chunk + ac3_chunksize_per_language
+				next language
+				for language = 0 < 2
+					getarray pcm_name 1 language
+					getarray ac3_name 2 language
+					getarray pcm_language_track_offset_within_chunk 3 language
+					getarray ac3_language_track_offset_within_chunk 4 language
+					log pcm_name pcm_language_track_offset_within_chunk pcm_chunksize_per_language MEMORY_FILE
+					math ac3_actual_chunksize = ac3_chunksize_per_language
+					xmath ac3_last_offset "(ac3_language_track_offset_within_chunk + ac3_chunksize_per_language) - 8"
+					for
+						goto ac3_last_offset MEMORY_FILE
+						get zero_byte_01 long MEMORY_FILE
+						get zero_byte_02 long MEMORY_FILE
+						if zero_byte_02 = 0
+							math ac3_actual_chunksize - 4
+						else
+							break
+						endif
+						if zero_byte_01 = 0
+							math ac3_actual_chunksize - 4
+						else
+							break
+						endif
+						math ac3_last_offset - 8
+					next
+					log ac3_name ac3_language_track_offset_within_chunk ac3_actual_chunksize MEMORY_FILE
+				next language
+			endif
+			append
+		endif
+	elif sound_type = 2
+		math reduced_pcm_size = chunk_track_info_02
+		string pcm_name p "%s.pcm" NAME
+		log MEMORY_FILE2 raw_track_offset_within_chunk reduced_pcm_size MEMORY_FILE
+		math pcm_read_number = -2
+		math pcm_write_number = -3
+		callfunction expand_pcm 1
+		append
+		log pcm_name 0 expanded_pcm_size pcm_write_number
+		if chunk_track_info_04 != 0
+			xmath ac3_offset "(chunk_track_info_03 - chunk_track_info_04) + raw_track_offset_within_chunk"
+			string ac3_name p "%s.ac3" NAME
+			log ac3_name ac3_offset chunk_track_info_04 MEMORY_FILE
+		endif
+		append
+		log MEMORY_FILE3 0 0
+	elif sound_type = 3
+		log MEMORY_FILE2 raw_track_offset_within_chunk chunk_track_info_03 MEMORY_FILE
+		callfunction process_compressed_audio_chunk 1
+		if decompressed_size == chunk_track_info_02
+			math reduced_pcm_size = chunk_track_info_02
+			string pcm_name p "%s.pcm" NAME
+			log MEMORY_FILE4 0 reduced_pcm_size MEMORY_FILE3
+			math pcm_read_number = -4
+			math pcm_write_number = -5
+			callfunction expand_pcm 1
+			append
+			log pcm_name 0 expanded_pcm_size pcm_write_number
+			if chunk_track_info_04 != 0
+				xmath ac3_offset "(chunk_track_info_03 - chunk_track_info_04) + raw_track_offset_within_chunk"
+				string ac3_name p "%s.ac3" NAME
+				log ac3_name ac3_offset chunk_track_info_04 MEMORY_FILE
+			endif
+			append
+		endif
+		log MEMORY_FILE3 0 0
+		log MEMORY_FILE4 0 0
+		log MEMORY_FILE5 0 0
+	endif
+endfunction
+
+startfunction process_compressed_audio_chunk
+	goto 0 MEMORY_FILE2
+	get compression_level byte MEMORY_FILE2
+	if compression_level >= 1 && compression_level <= 2
+	endif
+	get original_size long MEMORY_FILE2
+	log MEMORY_FILE3 0 0
+	math bytes_written = 0
+	xmath full_size "chunk_track_info_03 - chunk_track_info_04"
+	do
+		get control_byte byte MEMORY_FILE2
+		if control_byte <= 0x7d
+			for j = 0 < control_byte
+				goto bytes_written MEMORY_FILE3
+				get bytes_to_write byte MEMORY_FILE2
+				put bytes_to_write byte MEMORY_FILE3
+				math bytes_written + 1
+			next j
+		elif control_byte == 0x7e
+			get bytes_to_write byte MEMORY_FILE2
+			math bytes_to_write + 4
+			get source_byte_to_write byte MEMORY_FILE2
+			for j = 0 < bytes_to_write
+				goto bytes_written MEMORY_FILE3
+				put source_byte_to_write byte MEMORY_FILE3
+				math bytes_written + 1
+			next j
+		elif control_byte == 0x7f
+			get bytes_to_write short MEMORY_FILE2
+			get source_byte_to_write byte MEMORY_FILE2
+			for j = 0 < bytes_to_write
+				goto bytes_written MEMORY_FILE3
+				put source_byte_to_write byte MEMORY_FILE3
+				math bytes_written + 1
+			next j
+		elif control_byte >= 0x80
+			xmath additional_control_byte_01 "((control_byte & 0x7f) >> 3) + 3"
+			if compression_level == 2
+				if additional_control_byte_01 >= 5
+					xmath additional_control_byte_03 "((additional_control_byte_01 - 5) >> 1) + 1"
+					math additional_control_byte_01 - additional_control_byte_03
+				endif
+			endif
+			if compression_level == 1
+				xmath additional_control_byte_02 "control_byte & 0x07"
+			elif compression_level == 2
+				xmath additional_control_byte_02 "control_byte & 0x0f"
+			endif
+			if additional_control_byte_02 >= 0x08
+				math additional_control_byte_01 - 1
+			endif
+			get previous_bytes byte MEMORY_FILE2
+			if additional_control_byte_02 == 0
+				xmath byte_recovery_position "(bytes_written - previous_bytes) - 1"
+			else
+				xmath byte_recovery_position "(bytes_written - previous_bytes) - ((additional_control_byte_02 << 8) + 1)"
+			endif
+			for j = 0 < additional_control_byte_01
+				if byte_recovery_position >= 0
+					goto byte_recovery_position MEMORY_FILE3
+					get recurring_bytes byte MEMORY_FILE3
+				else
+					math recurring_bytes = 0
+				endif
+				goto bytes_written MEMORY_FILE3
+				put recurring_bytes byte MEMORY_FILE3
+				math bytes_written + 1
+				math byte_recovery_position + 1
+			next j
+		endif
+		savepos current_position MEMORY_FILE2
+	while current_position < full_size
+	get decompressed_size asize MEMORY_FILE3
+	log MEMORY_FILE2 0 0
+endfunction
+
+startfunction expand_pcm
+	if sound_type = 2
+		log MEMORY_FILE3 0 0
+	elif sound_type = 3
+		log MEMORY_FILE5 0 0
+	endif
+	math in_post = 0
+	math rp_pos = 0
+	do
+		goto rp_pos pcm_read_number
+		get target byte pcm_read_number
+		xmath predicted_sample "target << 0x19"
+		xmath new_sample "target & 0x80"
+		if new_sample == 0
+			math rp_pos + 2
+			get target byte pcm_read_number
+			math predicted_sample >> 0x11
+			math predicted_sample | target
+		else
+			math predicted_sample >> 0x19
+			math rp_pos + 1
+		endif
+		math predicted_sample + in_post
+		math predicted_sample << 0x10
+		math predicted_sample >> 0x10
+		math in_post = predicted_sample
+		put predicted_sample short pcm_write_number
+	while rp_pos < reduced_pcm_size
+	get expanded_pcm_size asize pcm_write_number
+endfunction
 
 startfunction extract_chunk
 	# single .dat movie files like to do things differently
