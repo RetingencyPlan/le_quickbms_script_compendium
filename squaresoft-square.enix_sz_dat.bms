@@ -10,11 +10,13 @@
 
 get NAME basename
 get EXT extension
+math dpcm_ver = 0
 
 if EXT == "dat"
 	get DAT_SIZE asize
 	open FDDE "sz" 1 EXISTS
 	if EXISTS == 0
+		math dpcm_ver = 2
 		get dat_version long
 		if dat_version == 0
 			get dat_02 byte
@@ -84,12 +86,14 @@ if EXT == "dat"
 			while chunk_position < DAT_SIZE
 		endif
 	else
+		math dpcm_ver = 1
 		math dat_file = 0
 		math sz_file = 1
 		callfunction handle_sz 1
 		callfunction parse_sz 1
 	endif
 elif EXT == "sz"
+	math dpcm_ver = 1
 	math dat_file = 1
 	open FDDE "dat" dat_file
 	math sz_file = 0
@@ -797,9 +801,16 @@ startfunction process_compressed_audio_chunk
 endfunction
 
 startfunction process_dpcm
-	log MEMORY_FILE4 0 0
-	math predicted_sample = 0
-	math current_position = 0
+	if dpcm_write_element = -2
+		log MEMORY_FILE2 0 0
+	elif dpcm_write_element = -4
+		log MEMORY_FILE4 0 0
+	endif
+	if dpcm_ver = 1
+		math predicted_sample = 0
+		math current_position = 0
+	endif
+	math dpcm_frame_fill = 0
 	do
 		goto current_position dpcm_read_element
 		get target byte dpcm_read_element
@@ -808,18 +819,20 @@ startfunction process_dpcm
 		if sample_is_big == 0
 			math current_position + 2
 			get target byte dpcm_read_element
+			math dpcm_frame_fill + 2
 			math output_sample >> 0x11
 			math output_sample | target
 		else
 			math output_sample >> 0x19
 			math current_position + 1
+			math dpcm_frame_fill + 1
 		endif
 		math output_sample + predicted_sample
 		math output_sample << 0x10
 		math output_sample >> 0x10
 		math predicted_sample = output_sample
 		put output_sample short dpcm_write_element
-	while current_position < dpcm_frame_size
+	while dpcm_frame_fill < dpcm_frame_size
 	get pcm16_frame_size asize dpcm_write_element
 endfunction
 
@@ -833,9 +846,49 @@ startfunction extract_sound_frame_from_singular_dat
 	elif audio_codec == 0xffffff03
 		string chunk_name p "%s.vsf" NAME
 	endif
-	append
 	if dat_version == 1
+		append
 		log chunk_name chunk_position audio_chunk_size
+		append
+		if audio_codec == 0xffffff02
+			log MEMORY_FILE chunk_position audio_chunk_size
+			math dpcm_read_element = -1
+			math dpcm_write_element = -2
+			math dpcm_chunk_offset = 0
+			string pcm_name p "%s.pcm" NAME
+			math remaining_dpcm_size = audio_chunk_size
+			do
+				goto dpcm_chunk_offset dpcm_read_element
+				get dpcm_flag byte dpcm_read_element
+				math dpcm_chunk_offset + 1
+				math remaining_dpcm_size - 1
+				if dpcm_flag == 0
+					append
+					log pcm_name dpcm_chunk_offset 512 dpcm_read_element
+					append
+					math dpcm_chunk_offset + 512
+					math remaining_dpcm_size - 512
+				elif dpcm_flag == 1
+					get dpcm_frame_size short dpcm_read_element
+					get predicted_sample short dpcm_read_element
+					xmath current_position "dpcm_chunk_offset + 4"
+					callfunction process_dpcm 1
+					append
+					log pcm_name 0 pcm16_frame_size MEMORY_FILE2
+					append
+					log MEMORY_FILE2 0 0
+					math dpcm_chunk_offset + 4
+					math remaining_dpcm_size - 4
+					math dpcm_chunk_offset + dpcm_frame_size
+					math remaining_dpcm_size - dpcm_frame_size
+				else
+					break
+				endif
+				if remaining_dpcm_size < 16
+					break
+				endif
+			while dpcm_chunk_offset < audio_chunk_size
+			log MEMORY_FILE 0 0
+		endif
 	endif
-	append
 endfunction
