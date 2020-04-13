@@ -51,7 +51,6 @@ get bf_ext extension
 # Peter Jackson's King Kong: The Official Game of the Movie (Xbox) - .### (starts with 1 is limited to 999)
  
 math split_bf = 0
-math is_r4_pc = 0
 if bf_ext == "bf0"
     math split_bf = 1
     math tentative_offset = 0
