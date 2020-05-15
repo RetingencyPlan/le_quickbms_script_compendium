@@ -1,0 +1,111 @@
+# Code Age Commanders ~Tsugumono Tsugarerumono~ [1] (PS2) - chainall.[toc/cin]
+# ---
+# [1] close translation (from Japanese to English) for this title is Code Age Commanders ~Taking Over From Our People~
+
+open FDDE "toc" 0
+open FDDE "cin" 1
+
+idstring 0 "CHAINTC2"
+get toc_size long
+math toc_pos = 12
+set full_name_01 string ""
+set full_name_02 string ""
+set directory_name string ""
+set file_name string ""
+math first_file_incoming = 0
+for toc_pos = toc_pos < toc_size
+	goto toc_pos
+	get control_code byte
+	xmath info_type "control_code & 0x0f"
+	xmath info_structure "(control_code >> 4) & 0x0f"
+	if control_code != 0x45
+		get control_size byte
+		if info_structure = 4
+			if info_type = 7
+				xmath string_size "control_size - 8"
+			elif info_type = 8
+				xmath string_size "control_size - 7"
+			endif
+		elif info_structure = 6
+			if info_type = 7
+				xmath string_size "control_size - 7"
+			elif info_type = 8
+				xmath string_size "control_size - 6"
+			endif
+		endif
+		if info_type = 4
+			get directory_01 short
+			get previous_directory_string_location byte
+			get directory_keyword string
+			set full_name_03 string ""
+			for xp = 0 < previous_directory_string_location
+				getvarchr string_char full_name_02 xp byte
+				string string_char = string_char
+				string full_name_03 + string_char
+			next xp
+			if previous_directory_string_location = 0
+				string full_name_01 = directory_keyword
+				string full_name_02 = full_name_01
+				string full_name_03 = full_name_02
+			else
+				string full_name_03 + directory_keyword
+				string full_name_02 = full_name_03
+			endif
+			string directory_name = full_name_03
+			math first_file_incoming = 1
+		else
+			if info_type = 6
+				get file_size long
+			elif info_type = 7
+				get file_size threebyte
+			elif info_type = 8
+				get file_size short
+			endif
+			if info_structure = 4
+				get file_offset threebyte
+			elif info_structure = 6
+				get file_offset short
+			endif
+			if first_file_incoming != 1
+				set full_name_04 string ""
+				math string_size - 1
+				get file_name_control_flags byte
+				xmath upper_string_size "(file_name_control_flags >> 4) & 0x0f"
+				xmath lower_string_size "file_name_control_flags & 0x0f"
+				getdstring current_string string_size
+				for xz1 = 0 < upper_string_size
+					getvarchr string_char string_initials xz1 byte
+					string string_char = string_char
+					string full_name_04 + string_char
+				next xz1
+				string full_name_04 + current_string
+				for xz1 = 0 < lower_string_size
+					getvarchr string_char string_initials xz2 byte
+					math xz2 - 1
+				next xz1
+				math xz3 = xz2
+				for xz1 = 0 < lower_string_size
+					getvarchr string_char string_initials xz3 byte
+					math xz3 + 1
+					string string_char = string_char
+					string full_name_04 + string_char
+				next xz1
+				string string_initials = full_name_04
+				strlen xz2 string_initials 1
+				string file_name = string_initials
+			else
+				getdstring string_initials string_size
+				math xz2 = string_size
+				math xz2 - 1
+				math first_file_incoming = 0
+				string file_name = string_initials
+			endif
+			string r_name p "%s\%s" directory_name file_name
+			math file_offset << 11
+			log r_name file_offset file_size 1
+		endif
+	else
+		math control_size = 1
+	endif
+	math toc_pos + control_size
+next
