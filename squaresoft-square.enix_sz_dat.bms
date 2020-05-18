@@ -815,8 +815,8 @@ startfunction process_dpcm
 		goto current_position dpcm_read_element
 		get target byte dpcm_read_element
 		xmath output_sample "target << 0x19"
-		xmath sample_is_big "target & 0x80"
-		if sample_is_big == 0
+		xmath sample_is_small "target & 0x80"
+		if sample_is_small == 0
 			math current_position + 2
 			get target byte dpcm_read_element
 			math dpcm_frame_fill + 2
@@ -842,20 +842,17 @@ startfunction extract_sound_frame_from_singular_dat
 	elif audio_codec == 0xffffff01
 		string chunk_name p "%s.ac3" NAME
 	elif audio_codec == 0xffffff02
-		string chunk_name p "%s.dpcm" NAME
+		string chunk_name p "%s.pcm" NAME
 	elif audio_codec == 0xffffff03
 		string chunk_name p "%s.vsf" NAME
 	endif
 	if dat_version == 1
-		append
-		log chunk_name chunk_position audio_chunk_size
-		append
 		if audio_codec == 0xffffff02
 			log MEMORY_FILE chunk_position audio_chunk_size
+			log MEMORY_FILE3 0 0
 			math dpcm_read_element = -1
 			math dpcm_write_element = -2
 			math dpcm_chunk_offset = 0
-			string pcm_name p "%s.pcm" NAME
 			math remaining_dpcm_size = audio_chunk_size
 			do
 				goto dpcm_chunk_offset dpcm_read_element
@@ -864,7 +861,7 @@ startfunction extract_sound_frame_from_singular_dat
 				math remaining_dpcm_size - 1
 				if dpcm_flag == 0
 					append
-					log pcm_name dpcm_chunk_offset 512 dpcm_read_element
+					log MEMORY_FILE3 dpcm_chunk_offset 512 dpcm_read_element
 					append
 					math dpcm_chunk_offset + 512
 					math remaining_dpcm_size - 512
@@ -874,7 +871,7 @@ startfunction extract_sound_frame_from_singular_dat
 					xmath current_position "dpcm_chunk_offset + 4"
 					callfunction process_dpcm 1
 					append
-					log pcm_name 0 pcm16_frame_size MEMORY_FILE2
+					log MEMORY_FILE3 0 pcm16_frame_size dpcm_write_element
 					append
 					log MEMORY_FILE2 0 0
 					math dpcm_chunk_offset + 4
@@ -889,6 +886,11 @@ startfunction extract_sound_frame_from_singular_dat
 				endif
 			while dpcm_chunk_offset < audio_chunk_size
 			log MEMORY_FILE 0 0
+			savepos m3_size MEMORY_FILE3
+			append
+			log chunk_name 0 m3_size MEMORY_FILE3
+			append
+			log MEMORY_FILE3 0 0
 		endif
 	endif
 endfunction
