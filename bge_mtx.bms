@@ -1,0 +1,47 @@
+# Beyond Good & Evil - *.mtx
+
+get mtx_name basename
+
+get mtx_id long
+if mtx_id != 0x2078746d # "mtx "
+	cleanexit
+endif
+get mtx_01 long
+get mtx_size long
+get mtx_ipu_chunk_size long
+get mtx_ipu_size long
+get mtx_audio_interleave long
+get mtx_audio_channels long
+get mtx_audio_size long
+get mtx_sample_rate long
+get mtx_float_value long
+math mtx_init_offset = 0x28
+math mtx_chunk_offset = mtx_init_offset
+xmath mtx_audio_chunk_size "mtx_audio_interleave * mtx_audio_channels"
+xmath mtx_chunks "(mtx_size - 0x28) / (mtx_audio_chunk_size + mtx_ipu_chunk_size)"
+xmath last_chunk "mtx_chunks - 1"
+math mtx_skip_01 = mtx_audio_chunk_size
+math mtx_skip_02 = mtx_ipu_chunk_size
+xmath mtx_vag_remnants "mtx_audio_size * mtx_audio_channels"
+math mtx_ipu_remnants = mtx_ipu_size
+append
+for i = 0 < mtx_chunks
+	goto mtx_chunk_offset
+	string vag_name p "%s.vag" mtx_name
+	if i == last_chunk
+		math mtx_audio_chunk_size = mtx_vag_remnants
+	endif
+	log vag_name mtx_chunk_offset mtx_audio_chunk_size
+	math mtx_chunk_offset + mtx_skip_01
+	math mtx_vag_remnants - mtx_audio_chunk_size
+	string ipu_name p "%s.ipu" mtx_name
+	if i != 0
+		if i == last_chunk
+			math mtx_ipu_chunk_size = mtx_ipu_remnants
+		endif
+		log ipu_name mtx_chunk_offset mtx_ipu_chunk_size
+		math mtx_ipu_remnants - mtx_ipu_chunk_size
+	endif
+	math mtx_chunk_offset + mtx_skip_02
+next i
+append
