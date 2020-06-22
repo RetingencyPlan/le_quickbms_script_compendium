@@ -37,6 +37,7 @@ if minor_version == 0
 endif
 if minor_version == 3
 	# Titanfall (2014)
+	# Titanfall 2 (2016)
 	putarray 0 0 "none"
 	putarray 0 1 "english"
 	putarray 0 2 "german"
@@ -60,13 +61,9 @@ if minor_version == 3
 	putarray 0 20 "hungarian"
 	putarray 0 21 "romanian"
 	putarray 0 22 "turkish"
-	comtype lzham
-	# (todo) Titanfall has several references to this particular compression algorithm
-	# you are seeing above, but i assure you that's not what the game actually uses at all.
 	math folders = 0
 	math files = 0
 	math chunks_per_file = 0
-	set base_file string dir_file
 	set sc1 string ""
 	set sc2 string ""
 	for i = 0 < 1
@@ -96,12 +93,12 @@ for i = 0
 					get file_02 short
 					if name != ""
 						string file_name p "%s/%s.%s" path name extension
+						print "%file_name%"
 						if minor_version == 0
 							get pak_number short
 							if pak_number != 0x7fff
 								string pak_name p "%s_%03d.vpk" base_file pak_number
 								open FDSE pak_name 1
-							else
 							endif
 							get file_offset long
 							get file_size long
@@ -118,6 +115,11 @@ for i = 0
 							append
 							for l = 0 < chunks_per_file
 								get pak_number short
+								if pak_number == 0xffff
+									# wonky work-around for some Titanfall 2 vpk files
+									goto -2 0 SEEK_CUR
+									break
+								endif
 								string pak_name p "%s_%03d.vpk" base_file pak_number
 								open FDSE pak_name 1
 								get file_04 byte
@@ -132,8 +134,10 @@ for i = 0
 								if compressed_chunk_size == original_chunk_size
 									log file_name file_offset_from_pak_number original_chunk_size 1
 								else
-									# (todo) chunk isn't decompressed with "comtype lzham"
+									# (todo) Titanfall uses a (to the best of my knowledge)
+									# proprietary compression algorithm, not lzham.
 									#clog file_name file_offset_from_pak_number compressed_chunk_size original_chunk_size 1
+									#log file_name file_offset_from_pak_number compressed_chunk_size 1
 								endif
 							next l
 							append
