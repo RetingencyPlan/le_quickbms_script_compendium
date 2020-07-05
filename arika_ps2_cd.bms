@@ -1,8 +1,15 @@
-# Arika (PS2) - [ARIKA.DAT]+[PS2.DAT]
+# Arika - ARIKA.DAT/INFO.DAT
 # ---
 # Street Fighter EX3 (PS2)
 # Technictix (PS2)
+# Technic Beat (PS2)
+# Forever Blue (Wii)
+# Forever Blue: Umi no Yubigoe (Wii)
 
+math dat1 = 1
+math dat2 = 2
+math ver = 1
+math is_elf = 1
 get elf_name filename
 if elf_name == "SLPM_601.05" # Street Fighter EX3 - Trial Version (PlayStation Festival 2000)
 	xmath files "0x1a00 / 0x20"
@@ -14,7 +21,7 @@ elif elf_name == "SLPS_200.03" # Street Fighter EX3 - Final Product (Japan)
 	callfunction handle_arika_dat 1
 	goto 0x433790
 	callfunction txth_handling_for_sfex3 1
-elif elf_name == "SLPM_601.34" # Technictix - Trial Version
+elif elf_name == "SLPM_601.34" # Technictix - Trial Version (Japan)
 	xmath files "0xda0 / 0x20"
 	callfunction handle_arika_dat 1
 elif elf_name == "SLPS_200.55" # Technictix - Final Product (Japan)
@@ -23,46 +30,115 @@ elif elf_name == "SLPS_200.55" # Technictix - Final Product (Japan)
 endif
 
 startfunction handle_arika_dat
-	open FDSE "ARIKA.DAT" 1
-	open FDSE "PS2.DAT" 2
-	get arika_dat_size asize 1
-	for i = 0 < 0x10
-		get k1 byte 1
-		xmath k2 "(k1 ^ 0xff) & 0xff"
-		putarray 0 i k2
-	next i
-	math pos_01 = 0x10
-	xmath bytes_to_process "(arika_dat_size - 0x10) / 0x10"
-	log MEMORY_FILE 0 0
-	goto 0 MEMORY_FILE
-	for i2 = 0 < bytes_to_process
-		for j1 = 0 < 0x10
-			goto pos_01 1
-			get target byte 1
-			xmath d1 "(target & 0xf) << 4 | (target >> 4) & 0x0f"
-			getarray key 0 j1
-			xmath d2 "(key - d1) & 0xff"
-			put d2 byte MEMORY_FILE
-			math pos_01 + 1
-		next j1
-	next i2
-	putarray 0 "" ""
-	goto 0 1
-	getdstring arika_title 0x10 1
-	goto 0 MEMORY_FILE
-	goto 4 MEMORY_FILE
-	get base_cd_sector_for_ps2_dat long MEMORY_FILE
-	goto 0x10 MEMORY_FILE
-	for i = 0 < files
-		getdstring file_name 0x14 MEMORY_FILE
-		get file_offset long MEMORY_FILE
-		math file_offset - base_cd_sector_for_ps2_dat
-		math file_offset << 11
-		get file_size_in_cd_sectors long MEMORY_FILE
-		get file_size long MEMORY_FILE
-		string final_name p "%s\%s" arika_title file_name
-		log final_name file_offset file_size 2
-	next i
+	if is_elf = 0
+		if dat_name == "ARIKA.DAT"
+			open FDSE "ARIKA.DAT" dat1
+			open FDSE "PS2.DAT" dat2
+		elif dat_name == "INFO.DAT"
+			open FDSE "INFO.DAT" dat1
+			open FDSE "GAME.DAT" dat2
+		endif
+	else
+		# i don't know!
+		open FDSE "ARIKA.DAT" dat1
+		open FDSE "PS2.DAT" dat2
+	endif
+	get arika_dat_size asize dat1
+	goto 0 dat1
+	if ver = 2
+		get is_encrypted byte dat1
+		goto 0 dat1
+	endif
+	if is_encrypted == 0
+		# (todo)
+	else
+		for i = 0 < 0x10
+			get k1 byte dat1
+			xmath k2 "(k1 ^ 0xff) & 0xff"
+			putarray 0 i k2
+		next i
+		if is_elf = 0
+			math pos_02 = 0x20
+			goto pos_02 dat1
+			math files = 0
+			if ver = 1
+				xmath bytes_to_process "(arika_dat_size - pos_02) / 0x20"
+				for i2 = 0 < bytes_to_process
+					get tb01 long dat1
+					get tb02 long dat1
+					get tb03 long dat1
+					get tb04 long dat1
+					get tb05 long dat1
+					get tb06 long dat1
+					get tb07 long dat1
+					get tb08 long dat1
+					if tb01 != 0x40404040
+					if tb05 != 0x40404040
+						math files + 1
+					endif
+					endif
+				next i2
+			endif
+		endif
+		math pos_01 = 0x10
+		xmath bytes_to_process "(arika_dat_size - pos_01) / 0x10"
+		log MEMORY_FILE 0 0
+		goto 0 MEMORY_FILE
+		for i2 = 0 < bytes_to_process
+			for j1 = 0 < 0x10
+				goto pos_01 dat1
+				get target byte dat1
+				xmath d1 "(target & 0xf) << 4 | (target >> 4) & 0x0f"
+				getarray key 0 j1
+				xmath d2 "(key - d1) & 0xff"
+				put d2 byte MEMORY_FILE
+				math pos_01 + 1
+			next j1
+		next i2
+		putarray 0 "" ""
+		goto 0 dat1
+		getdstring arika_title 0x10 dat1
+		if ver = 1
+			goto 0 MEMORY_FILE
+			goto 4 MEMORY_FILE
+			get base_sector_for_ps2_dat long MEMORY_FILE
+			goto 0x10 MEMORY_FILE
+		elif ver = 2
+			goto 0x1c MEMORY_FILE
+			get files long MEMORY_FILE
+			goto 0x20 MEMORY_FILE
+		endif
+		for i = 0 < files
+			math do_not_extract = 0
+			if ver = 1
+				getdstring file_name 0x14 MEMORY_FILE
+				get file_offset long MEMORY_FILE
+				math file_offset - base_sector_for_ps2_dat
+				math file_offset << 11
+				get file_size_in_sectors long MEMORY_FILE
+				get file_size long MEMORY_FILE
+			elif ver = 2
+				getdstring file_name 0x20 MEMORY_FILE
+				get file_size_01 long MEMORY_FILE
+				get file_offset long MEMORY_FILE
+				math file_offset << 11
+				get file_size_in_sectors long MEMORY_FILE
+				get file_size_02 long MEMORY_FILE
+			endif
+			string final_name p "%s\%s" arika_title file_name
+			if ver = 2
+				if file_size_01 != file_size_02
+					print " compressed file %final_name% with unknown compression algorithm. "
+					math do_not_extract = 1
+				else
+					math file_size == file_size_02
+				endif
+			endif
+			if do_not_extract = 0
+				log final_name file_offset file_size dat2
+			endif
+		next i
+	endif
 endfunction
 
 # the executable part is just for handling .mus files as used by the game.
@@ -138,3 +214,17 @@ startfunction txth_handling_for_sfex3
 		log txth_name 0 txth_size MEMORY_FILE
 	next i
 endfunction
+
+math dat1 = 0
+math dat2 = 1
+math is_elf = 0
+get dat_name filename
+if dat_name == "ARIKA.DAT"
+	open FDSE "PS2.DAT" 1
+	math ver = 1
+	callfunction handle_arika_dat 1
+elif dat_name == "INFO.DAT"
+	open FDSE "GAME.DAT" 1
+	math ver = 2
+	callfunction handle_arika_dat 1
+endif
