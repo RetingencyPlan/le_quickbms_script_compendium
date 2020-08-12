@@ -1,0 +1,270 @@
+# Square Enix - fse/fsd file system
+# this file system has been used in (to my knowledge) four of their games as listed below.
+# ---
+# Crisis Core: Final Fantasy VII - discimg.[fse/pkg]
+# The 3rd Birthday - 3rd.[fsd/pkg]
+# Final Fantasy Reishiki/Final Fantasy Type-0 - yellow.[fsd/pkg]
+# Final Fantasy Reishiki HD/Final Fantasy Type-0 HD - suzaku.[fsd/fnd], pack#.pac
+# ---
+# if in doubt, just apply this script to either the fse file or fsd.
+# both are companion files to pkg, or in Type-0 HD case, several pac files.
+# the first three games listed above were made for the PSP platform,
+# hence why they only had one raw data file (pkg) to work with instead of dozens (pack0.pac).
+
+get ext extension
+if ext == "fse"
+	callfunction init_load 1
+	get fse_size asize 0
+	xmath files "fse_size / 12"
+	math folder = 0
+	for i = 0 < files
+		get file_offset long
+		math file_offset << 11
+		get file_size long
+		get file_03 long
+		# seems to be always zero for whatever reason,
+		# probably a reserved field of sorts?
+		string temp_name p "%04d/" folder
+		if i != 0
+			if file_offset != 0
+				if file_size == 0
+					math folder + 1
+				else
+					log temp_name file_offset file_size 1
+				endif
+			endif
+		endif
+	next i
+elif ext == "fsd"
+	get current_disc short
+	get fsd_version short
+	if fsd_version == 0
+		callfunction init_load 1
+	elif fsd_version == 1
+		open FDDE "fnd" 1
+		# (todo) is this fnd file optional?
+		# previous games (3rd Birthday, Type-0 PSP) seemed to do fine without it.
+	else
+		print " unknown fsd version %fsd_version% "
+		cleanexit
+	endif
+	get tabs long
+	get files long
+	get tab_info_offset long
+	get file_info_offset long
+	if fsd_version == 0
+		get fsd_size long
+		get pkg_size long
+		get fsd_08 long
+		get fsd_09 long
+		get fsd_10 long
+		goto tab_info_offset
+		for i = 0 < tabs
+			get tab_01 long
+			putarray 0 i tab_01
+			get tab_02 short
+			putarray 1 i tab_02
+			get tab_03 short
+			putarray 2 i tab_03
+			get tab_04 long
+			putarray 3 i tab_04
+			get tab_05 long
+			putarray 4 i tab_05
+			get tab_06 long
+			putarray 5 i tab_06
+			get tab_07 long
+			putarray 6 i tab_07
+			get tab_08 long
+			putarray 7 i tab_08
+		next i
+		goto file_info_offset
+		for i = 0 < files
+			get file_01 long
+			xmath file_01_01 "file_01 & 0xfffff"
+			putarray 8 i file_01_01
+			xmath file_01_02 "(file_01 >> 0x14) & 0xfff"
+			putarray 9 i file_01_02
+			get file_02 long
+			putarray 10 i file_02
+		next i
+		for i = 0 < tabs
+			getarray first_tab_file 0 i
+			getarray tab_files 1 i
+			getarray tab_03 2 i
+			getarray tab_data_size 3 i
+			getarray tab_data_offset 4 i
+			getarray tab_06 5 i
+			getarray tab_07 6 i
+			getarray tab_08 7 i
+			math current_tab_file = first_tab_file
+			math last_file = tab_files
+			math last_file - 1
+			for j = 0 < tab_files
+				getarray file_offset 8 current_tab_file
+				math file_offset << 11
+				getarray remaining_file_size 9 current_tab_file
+				getarray file_config 10 current_tab_file
+				xmath file_exists "file_config & 1"
+				if remaining_file_size != 0
+					if j != last_file
+						math size_aid_01 = current_tab_file
+						math size_aid_01 + 1
+						getarray size_aid_02 8 size_aid_01
+						math size_aid_02 - 1
+						math size_aid_02 << 11
+					else
+						math size_aid_02 = tab_data_size
+						math size_aid_02 - 0x800
+						math size_aid_02 + tab_data_offset
+					endif
+					xmath file_size "(size_aid_02 - file_offset) + remaining_file_size"
+				else
+					math file_size = 0
+				endif
+				string temp_name p "%u/%u." i current_tab_file
+				if file_size != 0
+					log temp_name file_offset file_size 1
+				endif
+				math current_tab_file + 1
+			next j
+		next i
+	elif fsd_version == 1
+		comtype deflate_noerror
+		math fsd_0 = 0
+		math fnd_1 = 1
+		get fnd_entries long fnd_1
+		for i = 0 < fnd_entries
+			get entry_string_offset long fnd_1
+			putarray 0 i entry_string_offset
+		next i
+		for i = 0 < fnd_entries
+			getarray entry_string_offset 0 i
+			goto entry_string_offset fnd_1
+			get entry_name string fnd_1
+			putarray 1 i entry_name
+		next i
+		goto tab_info_offset fsd_0
+		for i = 0 < tabs
+			get tab_01 long fsd_0
+			putarray 2 i tab_01
+			get tab_02 long fsd_0
+			putarray 3 i tab_02
+			getdstring tab_dummy_data 0x14 fsd_0
+		next i
+		goto file_info_offset fsd_0
+		for i = 0 < files
+			callfunction fftype0hd_get_file_info 1
+			putarray 4 i file_01
+			putarray 5 i file_02
+			putarray 6 i file_03
+			putarray 7 i file_04
+			putarray 8 i file_06
+			putarray 9 i file_07
+		next i
+		for i = 0 < tabs
+			getarray first_file_within_tab 2 i
+			getarray last_file_within_tab 3 i
+			for j = first_file_within_tab < last_file_within_tab
+				getarray file_name 1 j
+				getarray file_size_01 4 j
+				getarray file_config 5 j
+				getarray file_size_02 6 j
+				getarray file_offset 7 j
+				getarray pac_number 8 j
+				getarray multilingual_file 9 j
+				set full_name string file_name
+				callfunction fftype0hd_file_helpers 1
+				if multilingual_file != 0xffffffff
+					xmath multilingual_file_info_offset "file_info_offset + (multilingual_file * 0x38)"
+					goto multilingual_file_info_offset fsd_0
+					math mf_a1 = multilingual_file
+					math mf_a2 = multilingual_file
+					if file_has_nine_subtitle_languages == 1
+						for j2 = 0 < 9
+							callfunction fftype0hd_get_file_info 1
+							putarray 10 mf_a1 file_01
+							putarray 11 mf_a1 file_02
+							putarray 12 mf_a1 file_03
+							putarray 13 mf_a1 file_04
+							putarray 14 mf_a1 file_06
+							putarray 15 mf_a1 file_07
+							math mf_a1 + 1
+						next j2
+						for j2 = 0 < 9
+							getarray file_size_01 10 mf_a2
+							getarray file_config 11 mf_a2
+							getarray file_size_02 12 mf_a2
+							getarray file_offset 13 mf_a2
+							getarray pac_number 14 mf_a2
+							getarray multilingual_file 15 mf_a2
+							string full_name p "language_%u/%s" j2 file_name
+							callfunction fftype0hd_file_helpers 1
+							math mf_a2 + 1
+						next j2
+					endif
+					if file_has_two_voice_languages == 1
+						for j2 = 0 < 1
+							callfunction fftype0hd_get_file_info 1
+							putarray 10 mf_a1 file_01
+							putarray 11 mf_a1 file_02
+							putarray 12 mf_a1 file_03
+							putarray 13 mf_a1 file_04
+							putarray 14 mf_a1 file_06
+							putarray 15 mf_a1 file_07
+							math mf_a1 + 1
+						next j2
+						for j2 = 0 < 1
+							getarray file_size_01 10 mf_a2
+							getarray file_config 11 mf_a2
+							getarray file_size_02 12 mf_a2
+							getarray file_offset 13 mf_a2
+							getarray pac_number 14 mf_a2
+							getarray multilingual_file 15 mf_a2
+							string full_name p "language_%u/%s" j2 file_name
+							callfunction fftype0hd_file_helpers 1
+							math mf_a2 + 1
+						next j2
+					endif
+				endif
+			next j
+		next i
+	endif
+endif
+
+startfunction init_load
+	open FDDE "pkg" 1
+endfunction
+
+startfunction fftype0hd_get_file_info
+	get file_01 long fsd_0
+	get file_02 long fsd_0
+	get file_03 longlong fsd_0
+	get file_04 longlong fsd_0
+	getdstring file_05 0x18 fsd_0
+	get file_06 long fsd_0
+	get file_07 long fsd_0
+endfunction
+
+startfunction fftype0hd_file_helpers
+	xmath file_exists "file_config & 1"
+	xmath file_is_compressed "(file_config >> 1) & 1"
+	xmath file_has_nine_subtitle_languages "(file_config >> 4) & 1"
+	xmath file_has_two_voice_languages "(file_config >> 5) & 1"
+	if pac_number != 0xffffffff
+		math pac_number & 0xff
+		if pac_number > 9
+			print " unknown pac number %pac_number%, loading it anyway... "
+		endif
+		string pac_name p "pack%u.pac" pac_number
+	endif
+	open FDSE pac_name 2
+	if file_exists == 1
+		if file_size_02 == 0
+			if file_size_01 != 0
+				log full_name file_offset file_size_01 2
+			endif
+		else
+			clog full_name file_offset file_size_01 file_size_02 2
+		endif
+	endif
+endfunction
