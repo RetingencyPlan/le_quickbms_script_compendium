@@ -16,7 +16,8 @@ if ext == "fse"
 	callfunction init_load 1
 	get fse_size asize 0
 	xmath files "fse_size / 12"
-	math folder = 0
+	math dummy_entry = 0
+	math existing_entry = 0
 	for i = 0 < files
 		get file_offset long
 		math file_offset << 11
@@ -24,15 +25,12 @@ if ext == "fse"
 		get file_03 long
 		# seems to be always zero for whatever reason,
 		# probably a reserved field of sorts?
-		string temp_name p "%04d/" folder
-		if i != 0
-			if file_offset != 0
-				if file_size == 0
-					math folder + 1
-				else
-					log temp_name file_offset file_size 1
-				endif
-			endif
+		string temp_name p "%u/%u." dummy_entry existing_entry
+		if file_size == 0
+			math dummy_entry + 1
+		else
+			math existing_entry + 1
+			log temp_name file_offset file_size 1
 		endif
 	next i
 elif ext == "fsd"
@@ -99,16 +97,16 @@ elif ext == "fsd"
 			math current_tab_file = first_tab_file
 			math last_file = tab_files
 			math last_file - 1
-			math folder = 0
+			math dummy_entry = 0
+			math existing_entry = 0
 			for j = 0 < tab_files
-				string temp_name p "%u/%u/%u." i folder current_tab_file
 				getarray file_offset 8 current_tab_file
 				math file_offset << 11
 				getarray remaining_file_size 9 current_tab_file
 				getarray file_config 10 current_tab_file
 				xmath file_exists "file_config & 1"
-				if file_config != 0
-					if remaining_file_size != 0
+				if remaining_file_size != 0
+					if file_exists == 1
 						if j != last_file
 							math size_aid_01 = current_tab_file
 							math size_aid_01 + 1
@@ -124,13 +122,15 @@ elif ext == "fsd"
 					else
 						math file_size = 0
 					endif
-					if file_size != 0
-						log temp_name file_offset file_size 1
-					else
-						math folder + 1
-					endif
 				else
-					math folder + 1
+					math file_size = 0
+				endif
+				string temp_name p "%u/%u/%u." i dummy_entry existing_entry
+				if file_size != 0
+					log temp_name file_offset file_size 1
+					math existing_entry + 1
+				else
+					math dummy_entry + 1
 				endif
 				math current_tab_file + 1
 			next j
