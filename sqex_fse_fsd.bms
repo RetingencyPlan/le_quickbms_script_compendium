@@ -99,31 +99,38 @@ elif ext == "fsd"
 			math current_tab_file = first_tab_file
 			math last_file = tab_files
 			math last_file - 1
+			math folder = 0
 			for j = 0 < tab_files
+				string temp_name p "%u/%u/%u." i folder current_tab_file
 				getarray file_offset 8 current_tab_file
 				math file_offset << 11
 				getarray remaining_file_size 9 current_tab_file
 				getarray file_config 10 current_tab_file
 				xmath file_exists "file_config & 1"
-				if remaining_file_size != 0
-					if j != last_file
-						math size_aid_01 = current_tab_file
-						math size_aid_01 + 1
-						getarray size_aid_02 8 size_aid_01
-						math size_aid_02 - 1
-						math size_aid_02 << 11
+				if file_config != 0
+					if remaining_file_size != 0
+						if j != last_file
+							math size_aid_01 = current_tab_file
+							math size_aid_01 + 1
+							getarray size_aid_02 8 size_aid_01
+							math size_aid_02 - 1
+							math size_aid_02 << 11
+						else
+							math size_aid_02 = tab_data_size
+							math size_aid_02 - 0x800
+							math size_aid_02 + tab_data_offset
+						endif
+						xmath file_size "(size_aid_02 - file_offset) + remaining_file_size"
 					else
-						math size_aid_02 = tab_data_size
-						math size_aid_02 - 0x800
-						math size_aid_02 + tab_data_offset
+						math file_size = 0
 					endif
-					xmath file_size "(size_aid_02 - file_offset) + remaining_file_size"
+					if file_size != 0
+						log temp_name file_offset file_size 1
+					else
+						math folder + 1
+					endif
 				else
-					math file_size = 0
-				endif
-				string temp_name p "%u/%u." i current_tab_file
-				if file_size != 0
-					log temp_name file_offset file_size 1
+					math folder + 1
 				endif
 				math current_tab_file + 1
 			next j
