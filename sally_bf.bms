@@ -28,9 +28,11 @@
 # Just Dance 2
 # Raving Rabbids: Travel in Time
 # Michael Jackson: The Experience
-# Just Dance 2: Extra Songs, Just Dance: Summer Party
+# Just Dance 2: Extra Songs
+# Just Dance: Summer Party
 # Just Dance 3
-# The Adventures of Tintin: The Game, The Adventures of Tintin: The Secret of the Unicorn
+# The Adventures of Tintin: The Game
+# The Adventures of Tintin: The Secret of the Unicorn
 # The Black Eyed Peas Experience
 # ABBA: You Can Dance
 # Just Dance: Best of
@@ -39,683 +41,1055 @@
 # --- "BF64" ---
 # Shaun White Skateboarding
 # (and possibly others that use either of these three formats)
- 
+
 math 32bit_max_number = 0xffffffff
- 
+
 get bf_size asize
 get bf_name basename
 get bf_ext extension
- 
+
 # special cases of split bf files:
 # Beyond Good and Evil (Xbox) - .bf# (starts with 0 and is limited to 9)
 # Peter Jackson's King Kong: The Official Game of the Movie (Xbox) - .### (starts with 1 is limited to 999)
- 
+
 math split_bf = 0
+math is_r4_pc = 0
 if bf_ext == "bf0"
-    math split_bf = 1
-    math tentative_offset = 0
-    math total_bf_parts = 0
-    for i = 0 < 10
-        string name p "%s.bf%d" bf_name i
-        open FDSE name 1 EXISTS
-        if EXISTS == 1
-            get size asize 1
-            putarray 128 i name
-            putarray 129 i size
-            putarray 130 i tentative_offset
-            math tentative_offset + size
-            math total_bf_parts + 1
-        endif
-    next i
-    putarray 130 total_bf_parts tentative_offset
+	math split_bf = 1
+	math tentative_offset = 0
+	math total_bf_parts = 0
+	for i = 0 < 10
+		string name p "%s.bf%d" bf_name i
+		open FDSE name 1 EXISTS
+		if EXISTS == 1
+			get size asize 1
+			putarray 128 i name
+			putarray 129 i size
+			putarray 130 i tentative_offset
+			math tentative_offset + size
+			math total_bf_parts + 1
+		endif
+	next i
+	putarray 130 total_bf_parts tentative_offset
 elif bf_ext == "001"
-    math split_bf = 1
-    math tentative_offset = 0
-    math total_bf_parts = 0
-    for i = 0 < 999
-        xmath i2 "i + 1"
-        string name p "%s.%03d" bf_name i2
-        open FDSE name 1 EXISTS
-        if EXISTS == 1
-            get size asize 1
-            putarray 128 i name
-            putarray 129 i size
-            putarray 130 i tentative_offset
-            math tentative_offset + size
-            math total_bf_parts + 1
-        endif
-    next i
-    putarray 130 total_bf_parts tentative_offset
+	math split_bf = 1
+	math tentative_offset = 0
+	math total_bf_parts = 0
+	for i = 1 < 999
+		xmath i2 "i + 1"
+		string name p "%s.%03d" bf_name i2
+		open FDSE name 1 EXISTS
+		if EXISTS == 1
+			get size asize 1
+			putarray 128 i name
+			putarray 129 i size
+			putarray 130 i tentative_offset
+			math tentative_offset + size
+			math total_bf_parts + 1
+		endif
+	next i
+	putarray 130 total_bf_parts tentative_offset
 endif
- 
+
 endian little
- 
+
 get bf_01 long
 xmath bf_01_01 "(bf_01 & 0xff) << 24 | (bf_01 & 0xff00) << 8 | (bf_01 & 0xff0000) >> 8 | (bf_01 & 0xff000000) >> 24"
 xmath bigfile_sign "(bf_01_01 >> 8) & 0xffffff"
 math entry_info_size = 0
 if bigfile_sign == 0x424947 # "BIG"
-    log MEMORY_FILE 4 4 # put initial header data into memory
-    math file_number = -1
-    math entry_info_size_01 = 0x54
-    math entry_info_size_02 = 0x54
-    callfunction read_bigfile_header 1
+	log MEMORY_FILE 4 4 # put initial header data into memory
+	math file_number = -1
+	math entry_info_size_01 = 0x54
+	math entry_info_size_02 = 0x54
+	callfunction read_bigfile_header 1
 elif bigfile_sign == 0x425547 # "BUG"
-    math entry_info_size_01 = 0x54
-    math entry_info_size_02 = 0x54
-    callfunction decrypt_bigfile_header 1
+	math entry_info_size_01 = 0x54
+	math entry_info_size_02 = 0x54
+	callfunction decrypt_bigfile_header 1
 elif bigfile_sign == 0x414245 # "ABE"
-    callfunction read_abe_header 1
+	callfunction read_abe_header 1
 endif
 xmath bf64_sign "bf_01_01 & 0xffffffff"
 if bf64_sign == 0x42463634 # "BF64"
-    callfunction read_bf64_header 1
+	callfunction read_bf64_header 1
 endif
- 
-startfunction read_bf64_header
-    get bf64_01 long
-    get files long
-    get folders long
-endfunction
- 
+
 startfunction read_bigfile_header
-    get bigfile_parameters long file_number
-    # (todo) explore "bigfile_parameters" much further.
-    # every .bf file that i've observed behaves like this:
-    # if the .bf file is encrypted, then bigfile_parameters is set to 0x24 without exception.
-    # but the thing is, the four variables that reside at offset 16 are pretty much
-    # the first step of the "header decryption" process that is already covered here,
-    # so bigfile_parameters might already be out of the question just as much
-    # as the "bigfile" signature that is handled above.
-    # perhaps there is a way to handle the decryption process
-    # more efficiently without relying on bigfile_sign...
-    if bigfile_parameters == 0x24
-        math entry_info_size_01 + 4
-    elif bigfile_parameters == 0x2a
-        math entry_info_size_01 + 0x28
-    elif bigfile_parameters == 0x2b
-        math entry_info_size_01 + 0x2c
-    elif bigfile_parameters == 0x2c
-        math entry_info_size_01 + 0x28
-    endif
-    if bf_name == "avatar_bin_wii"
-        math entry_info_size_01 + 0x40
-        math entry_info_size_02 + 0x40
-    endif
-    if bigfile_sign != 0x425547 # "BUG"
-        if bigfile_parameters == 0x2c
-            log MEMORY_FILE 8 0x50
-            math file_index_header_offset = 0x58
-        else
-            log MEMORY_FILE 8 0x24
-            math file_index_header_offset = 0x2c
-        endif
-        math file_number = -1
-        goto 0 file_number
-    else
-        if bigfile_parameters == 0x2c
-            math file_index_header_offset = 0x58
-        else
-            math file_index_header_offset = 0x2c
-        endif
-    endif
-    get files1 long file_number
-    get folders1 long file_number
-    # they're needed for header decryption, see decrypt_bigfile_header
-    get normal_key_01 long file_number
-    get normal_key_02 long file_number
-    get inverted_key_01 long file_number
-    get inverted_key_02 long file_number
-    get skips1 long file_number
-    get file_indices long file_number
-    # bigfile_parameters 0x2c has tons of assigned hashes for certain files instead.
-    if bigfile_parameters == 0x2c
-        get Univers_oin long file_number
-        get unknown_hash_02 long file_number
-        get versiontag_bin long file_number
-    endif
-    # flagship_file however stays here regardless...
-    get flagship_file long file_number
-    if bigfile_parameters == 0x2c
-        get bigfile_unknown_04 long file_number
-        get bigfile_unknown_05 long file_number
-        get bigfile_unknown_06 long file_number
-        get bigfile_unknown_07 long file_number
-        get bigfile_unknown_08 long file_number
-        get ps2_new_ico long file_number
-        get Logo_loading_bin long file_number
-        get bigfile_unknown_11 long file_number
-    endif
-    math file_index_header_size = 0x18
-    if bigfile_sign == 0x424947 # "BIG"
-        log MEMORY_FILE2 file_index_header_offset file_index_header_size
-        math file_number = -2
-    elif bigfile_sign == 0x425547 # "BUG"
-        goto file_index_header_offset
-        putvarchr MEMORY_FILE2 file_index_header_size 0
-        xmath passes "file_index_header_size / 4"
-        math file_number = -2
-        callfunction decrypt_block 1
-    endif
-    goto 0 file_number
-    for i = 0 < file_indices
-        log MEMORY_FILE3 0 0
-        log MEMORY_FILE4 0 0
-        log MEMORY_FILE5 0 0
-        get files2 long file_number
-        get folders2 long file_number
-        get file_listing_offset long file_number
-        get next_listing_offset long file_number
-        get bf_16 long file_number
-        get skips2 long file_number
-        xmath file_listing_size "files2 * 8"
-        xmath file_tab_offset "file_listing_offset + (skips1 * 8)"
-        xmath file_tab_size "files2 * entry_info_size_01"
-        xmath folder_tab_offset "file_tab_offset + (skips1 * entry_info_size_01)"
-        xmath folder_tab_size "folders2 * entry_info_size_02"
-        math current_file = 0 # needed for Rayman Raving Rabbids (Windows, official Ubisoft release)
-        if bigfile_sign == 0x424947 # "BIG"
-            log MEMORY_FILE3 file_listing_offset file_listing_size
-            math file_number = -3
-            callfunction initialize_file_listing 1
-            log MEMORY_FILE4 file_tab_offset file_tab_size
-            math file_number = -4
-            callfunction parse_file_tabs 1
-            log MEMORY_FILE5 folder_tab_offset folder_tab_size
-            math file_number = -5
-            callfunction parse_folder_tabs 1
-        elif bigfile_sign == 0x425547 # "BUG"
-            math broken_file_tab = 0
-            goto file_listing_offset
-            putvarchr MEMORY_FILE3 file_listing_size 0
-            xmath passes "files2 * 4"
-            math file_number = -3
-            callfunction decrypt_block 1
-            goto 0 file_number
-            callfunction initialize_file_listing 1
-            goto file_tab_offset
-            math erased_tab_size = 0
-            for crub = 0
-                get padd long
-                if padd == 0
-                    math erased_tab_size + 4
-                else
-                    goto file_tab_offset
-                    break
-                endif
-                if erased_tab_size == file_tab_size
-                    # just in case the entire "file tab" has been wiped out
-                    break
-                endif
-            next crub
-            if erased_tab_size != 0
-                math broken_file_tab = 1
-                print " brug "
-            endif
-            if broken_file_tab = 1
-                xmath missing_files "erased_tab_size / entry_info_size_01"
-                xmath modulus_aid "erased_tab_size % entry_info_size_01"
-                if modulus_aid != 0
-                    math missing_files + 1
-                endif
-                for mf = 0 < missing_files
-                    xmath m2f "mf + 1"
-                    getarray file_offset 0 current_file
-                    getarray file_name_hash 1 current_file
-                    goto file_offset
-                    get real_file_size long
-                    math file_offset + 4
-                    string temp_name p "files_left_out_from_file_tab/%05d_%08x" m2f file_name_hash
-                    log temp_name file_offset real_file_size
-                    math current_file + 1
-                next mf
-                xmath file_tab_skip_size "missing_files * entry_info_size_01"
-                math file_tab_offset + file_tab_skip_size
-                math file_tab_size - file_tab_skip_size
-                goto file_tab_offset
-            endif
-            putvarchr MEMORY_FILE4 file_tab_size 0
-            math file_number = -4
-            xmath passes "file_tab_size / 4"
-            callfunction decrypt_block 1
-            goto 0 file_number
-            callfunction parse_file_tabs 1
-            goto folder_tab_offset
-            putvarchr MEMORY_FILE5 folder_tab_size putvarchr
-            math file_number = -5
-            xmath passes "folder_tab_size / 4"
-            callfunction decrypt_block 1
-            goto 0 file_number
-            callfunction parse_folder_tabs 1
-        endif
-        callfunction final_step 1
-        if next_listing_offset != 32bit_max_number
-            # (todo) implement an unique situation for
-            # split bf files (not seen)
-            log MEMORY_FILE2 0 0
-            math next_listing_offset - file_index_header_size
-            if bigfile_sign == 0x424947 # "BIG"
-                log MEMORY_FILE2 next_listing_offset file_index_header_size
-                math file_number = -2
-                goto 0 file_number
-            elif bigfile_sign == 0x425547 # "BUG"
-                goto next_listing_offset
-                putvarchr MEMORY_FILE2 file_index_header_size 0
-                xmath passes "file_index_header_size / 4"
-                math file_number = -2
-                callfunction decrypt_block 1
-                goto 0 file_number
-            endif
-        endif
-    next i
+	get bigfile_parameters long file_number
+	# (todo) explore "bigfile_parameters" much further.
+	# every .bf file that i've observed behaves like this:
+	# if the .bf file is encrypted, then bigfile_parameters is set to 0x24 without exception.
+	# but the thing is, the four variables that reside at offset 16 are pretty much
+	# the first step of the "header decryption" process that is already covered here,
+	# so bigfile_parameters might already be out of the question just as much
+	# as the "bigfile" signature that is handled above.
+	# perhaps there is a way to handle the decryption process
+	# more efficiently without relying on bigfile_sign...
+	if bigfile_parameters == 0x24
+		math entry_info_size_01 + 4
+	elif bigfile_parameters == 0x2a
+		math entry_info_size_01 + 0x28
+	elif bigfile_parameters == 0x2b
+		math entry_info_size_01 + 0x2c
+	elif bigfile_parameters == 0x2c
+		math entry_info_size_01 + 0x28
+	endif
+	if bf_name == "avatar_bin_wii"
+		math entry_info_size_01 + 0x40
+		math entry_info_size_02 + 0x40
+	endif
+	if bigfile_sign != 0x425547 # "BUG"
+		if bigfile_parameters == 0x2c
+			log MEMORY_FILE 8 0x50
+			math file_index_header_offset = 0x58
+		else
+			log MEMORY_FILE 8 0x24
+			math file_index_header_offset = 0x2c
+		endif
+		math file_number = -1
+		goto 0 file_number
+	else
+		if bigfile_parameters == 0x2c
+			math file_index_header_offset = 0x58
+		else
+			math file_index_header_offset = 0x2c
+		endif
+	endif
+	get files1 long file_number
+	get folders1 long file_number
+	# they're needed for header decryption, see decrypt_bigfile_header
+	get normal_key_01 long file_number
+	get normal_key_02 long file_number
+	get inverted_key_01 long file_number
+	get inverted_key_02 long file_number
+	get skips1 long file_number
+	get file_indices long file_number
+	# bigfile_parameters 0x2c has tons of assigned hashes for certain files instead.
+	if bigfile_parameters == 0x2c
+		get univers_oin long file_number
+		get unknown_hash_02 long file_number
+		get versiontag_bin long file_number
+	endif
+	get univers_oin long file_number
+	if bigfile_parameters == 0x2c
+		get bigfile_unknown_04 long file_number
+		get bigfile_unknown_05 long file_number
+		get bigfile_unknown_06 long file_number
+		get bigfile_unknown_07 long file_number
+		get bigfile_unknown_08 long file_number
+		get ps2_new_ico long file_number
+		get logo_loading_bin long file_number
+		get bigfile_unknown_11 long file_number
+	endif
+	math file_index_header_size = 0x18
+	if bigfile_sign == 0x424947 # "BIG"
+		log MEMORY_FILE2 file_index_header_offset file_index_header_size
+		math file_number = -2
+	elif bigfile_sign == 0x425547 # "BUG"
+		goto file_index_header_offset
+		putvarchr MEMORY_FILE2 file_index_header_size 0
+		xmath passes "file_index_header_size / 4"
+		math file_number = -2
+		callfunction decrypt_block 1
+	endif
+	goto 0 file_number
+	for i = 0 < file_indices
+		log MEMORY_FILE3 0 0
+		log MEMORY_FILE4 0 0
+		log MEMORY_FILE5 0 0
+		get files2 long file_number
+		get folders2 long file_number
+		get file_listing_offset long file_number
+		get next_listing_offset long file_number
+		get bf_16 long file_number
+		get skips2 long file_number
+		xmath file_listing_size "files2 * 8"
+		xmath file_tab_offset "file_listing_offset + (skips1 * 8)"
+		xmath file_tab_size "files2 * entry_info_size_01"
+		xmath folder_tab_offset "file_tab_offset + (skips1 * entry_info_size_01)"
+		xmath folder_tab_size "folders2 * entry_info_size_02"
+		math current_file = 0 # needed for Rayman Raving Rabbids (Windows, official Ubisoft release)
+		if bigfile_sign == 0x424947 # "BIG"
+			log MEMORY_FILE3 file_listing_offset file_listing_size
+			math file_number = -3
+			callfunction initialize_file_listing 1
+			log MEMORY_FILE4 file_tab_offset file_tab_size
+			math file_number = -4
+			callfunction parse_file_tabs 1
+			log MEMORY_FILE5 folder_tab_offset folder_tab_size
+			math file_number = -5
+			callfunction parse_folder_tabs 1
+		elif bigfile_sign == 0x425547 # "BUG"
+			math broken_file_tab = 0
+			goto file_listing_offset
+			putvarchr MEMORY_FILE3 file_listing_size 0
+			xmath passes "files2 * 4"
+			math file_number = -3
+			callfunction decrypt_block 1
+			goto 0 file_number
+			callfunction initialize_file_listing 1
+			goto file_tab_offset
+			math erased_tab_size = 0
+			for crub = 0
+				get padd long
+				if padd == 0
+					math erased_tab_size + 4
+				else
+					goto file_tab_offset
+					break
+				endif
+				if erased_tab_size == file_tab_size
+					# just in case the entire "file tab" has been wiped out
+					break
+				endif
+			next crub
+			if erased_tab_size != 0
+				math broken_file_tab = 1
+			endif
+			if broken_file_tab = 1
+				xmath missing_files "erased_tab_size / entry_info_size_01"
+				xmath modulus_aid "erased_tab_size % entry_info_size_01"
+				if modulus_aid != 0
+					math missing_files + 1
+				endif
+				for mf = 0 < missing_files
+					xmath m2f "mf + 1"
+					getarray file_offset 0 current_file
+					getarray file_name_hash 1 current_file
+					goto file_offset
+					get real_file_size long
+					math file_offset + 4
+					string temp_name p "files_left_out_from_file_tab/%05d_%08x" m2f file_name_hash
+					log temp_name file_offset real_file_size
+					math current_file + 1
+				next mf
+				xmath file_tab_skip_size "missing_files * entry_info_size_01"
+				math file_tab_offset + file_tab_skip_size
+				math file_tab_size - file_tab_skip_size
+				goto file_tab_offset
+			endif
+			putvarchr MEMORY_FILE4 file_tab_size 0
+			math file_number = -4
+			xmath passes "file_tab_size / 4"
+			callfunction decrypt_block 1
+			goto 0 file_number
+			callfunction parse_file_tabs 1
+			goto folder_tab_offset
+			putvarchr MEMORY_FILE5 folder_tab_size putvarchr
+			math file_number = -5
+			xmath passes "folder_tab_size / 4"
+			callfunction decrypt_block 1
+			goto 0 file_number
+			callfunction parse_folder_tabs 1
+		endif
+		callfunction final_step 1
+		if next_listing_offset != 32bit_max_number
+			# (todo) implement an unique situation for
+			# split bf files (not seen)
+			log MEMORY_FILE2 0 0
+			math next_listing_offset - file_index_header_size
+			if bigfile_sign == 0x424947 # "BIG"
+				log MEMORY_FILE2 next_listing_offset file_index_header_size
+				math file_number = -2
+				goto 0 file_number
+			elif bigfile_sign == 0x425547 # "BUG"
+				goto next_listing_offset
+				putvarchr MEMORY_FILE2 file_index_header_size 0
+				xmath passes "file_index_header_size / 4"
+				math file_number = -2
+				callfunction decrypt_block 1
+				goto 0 file_number
+			endif
+		endif
+	next i
 endfunction
- 
+
 startfunction initialize_file_listing
-    for i1 = 0 < files2
-        get file_01 long file_number
-        putarray 0 i1 file_01
-        get file_02 long file_number
-        putarray 1 i1 file_02
-    next i1
+	for i1 = 0 < files2
+		get file_01 long file_number
+		putarray 0 i1 file_01
+		get file_02 long file_number
+		putarray 1 i1 file_02
+	next i1
 endfunction
- 
+
 startfunction parse_file_tabs
-    for i1 = current_file < files2
-        get file_03 long file_number
-        putarray 2 i1 file_03
-        get file_04 long file_number
-        putarray 3 i1 file_04
-        get file_05 long file_number
-        putarray 4 i1 file_05
-        get file_06 long file_number
-        putarray 5 i1 file_06
-        get file_07 time file_number
-        putarray 6 i1 file_07
-        callfunction fetch_entry_name 1
-        set file_08 string entry_name
-        putarray 7 i1 file_08
-        if bigfile_parameters == 0x24
-            get file_09 long file_number
-            putarray 8 i1 file_09
-        endif
-        if bigfile_parameters >= 0x2a
-            get file_09 long file_number
-            putarray 8 i1 file_09
-            getdstring file_10 0x20 file_number
-            putarray 9 i1 file_10
-            get file_11 long file_number
-            putarray 10 i1 file_11
-            if bigfile_parameters == 0x2b
-                get file_12 long file_number
-                putarray 11 i1 file_12
-            endif
-        endif
-    next i1
+	for i1 = current_file < files2
+		get file_03 long file_number
+		putarray 2 i1 file_03
+		get file_04 long file_number
+		putarray 3 i1 file_04
+		get file_05 long file_number
+		putarray 4 i1 file_05
+		get file_06 long file_number
+		putarray 5 i1 file_06
+		get file_07 time file_number
+		putarray 6 i1 file_07
+		callfunction fetch_entry_name 1
+		set file_08 string entry_name
+		putarray 7 i1 file_08
+		if bigfile_parameters == 0x24
+			get file_09 long file_number
+			putarray 8 i1 file_09
+		endif
+		if bigfile_parameters >= 0x2a
+			get file_09 long file_number
+			putarray 8 i1 file_09
+			getdstring file_10 0x20 file_number
+			putarray 9 i1 file_10
+			get file_11 long file_number
+			putarray 10 i1 file_11
+			if bigfile_parameters == 0x2b
+				get file_12 long file_number
+				putarray 11 i1 file_12
+			endif
+		endif
+	next i1
 endfunction
- 
+
 startfunction parse_folder_tabs
-    for i2 = 0 < folders2
-        get folder_01 long file_number
-        putarray 32 i2 folder_01
-        get folder_02 long file_number
-        putarray 33 i2 folder_02
-        get folder_03 long file_number
-        putarray 34 i2 folder_03
-        get folder_04 long file_number
-        putarray 35 i2 folder_04
-        get folder_05 long file_number
-        putarray 36 i2 folder_05
-        callfunction fetch_entry_name 1
-        set folder_06 string entry_name
-        putarray 37 i2 folder_06
-    next i2
+	for i2 = 0 < folders2
+		get folder_01 long file_number
+		putarray 32 i2 folder_01
+		get folder_02 long file_number
+		putarray 33 i2 folder_02
+		get folder_03 long file_number
+		putarray 34 i2 folder_03
+		get folder_04 long file_number
+		putarray 35 i2 folder_04
+		get folder_05 long file_number
+		putarray 36 i2 folder_05
+		callfunction fetch_entry_name 1
+		set folder_06 string entry_name
+		putarray 37 i2 folder_06
+	next i2
 endfunction
- 
+
 startfunction final_step
-    if bigfile_sign == 0x414245 # "ABE"
-        for i2 = 0 < folders2
-            set full_folder_name string ""
-            getarray folder_name 32 i2
-            getarray previous_folder 33 i2
-            getarray next_folder 34 i2
-            getarray neighbor_folder 35 i2
-            getarray flagship_title 36 i2
-            getarray folder_06 37 i2
-            math keyword_number = 0
-            putarray 64 keyword_number folder_name
-            math keyword_number + 1
-            if previous_folder != 32bit_max_number
-                for
-                    getarray folder_name 32 previous_folder
-                    getarray previous_folder 33 previous_folder
-                    putarray 64 keyword_number folder_name
-                    math keyword_number + 1
-                    if previous_folder == 32bit_max_number
-                        break
-                    endif
-                next
-            endif
-            math max_names_for_this_folder = keyword_number
-            xmath name_startoff "keyword_number - 1"
-            for nk = 0 < max_names_for_this_folder
-                getarray folder_name 64 name_startoff
-                math name_startoff - 1
-                string full_folder_name + folder_name
-                string full_folder_name + "/"
-            next nk
-            putarray 38 i2 full_folder_name
-        next i2
- 
-        for i1 = 0 < files2
-            set full_file_name string ""
-            getarray file_name 0 i1
-            getarray file_02 1 i1
-            getarray folder_number 2 i1
-            getarray full_folder_name 38 folder_number
-            getarray file_04 3 i1
-            getarray encapsulated_size 4 i1
-            getarray file_timestamp 5 i1
-            getarray file_name_hash 6 i1
-            getarray file_08 7 i1
-            getarray file_offset 8 i1
-            getarray block_size 9 i1
-            getarray file_size 10 i1
-            getarray file_12 11 i1
-            getarray file_13 12 i1
-            getarray file_14 13 i1
-            getarray file_15 14 i1
-            getarray file_16 15 i1
-            string full_file_name + full_folder_name
-            string full_file_name + file_name
-            goto file_offset
-            get compressed_file_size long
-            get original_file_size long
-            xmath real_file_offset "file_offset + 0x20"
-        next i1
-    else
-        for i2 = 0 < folders2
-            set full_folder_name string ""
-            getarray folder_01 32 i2
-            getarray next_folder 33 i2
-            getarray next_neighbor_folder 34 i2
-            getarray previous_neighbor_folder 35 i2
-            getarray previous_folder 36 i2
-            getarray folder_name 37 i2
-            math keyword_number = 0
-            putarray 64 keyword_number folder_name
-            math keyword_number + 1
-            if previous_folder != 32bit_max_number
-                for
-                    getarray previous_folder 36 previous_folder
-                    getarray folder_name 37 previous_folder
-                    putarray 64 keyword_number folder_name
-                    math keyword_number + 1
-                    if previous_folder == 0
-                        break
-                    endif
-                next
-            endif
-            math max_names_for_this_folder = keyword_number
-            xmath name_startoff "keyword_number - 1"
-            for nk = 0 < max_names_for_this_folder
-                getarray folder_name 64 name_startoff
-                math name_startoff - 1
-                string full_folder_name + folder_name
-                string full_folder_name + "/"
-            next nk
-            putarray 38 i2 full_folder_name
-        next i2
- 
-        for i1 = current_file < files2
-            set full_file_name string ""
-            getarray file_offset 0 i1
-            getarray file_name_hash 1 i1
-            getarray file_size 2 i1
-            getarray next_neighbor_file 3 i1
-            getarray previous_neighbor_file 4 i1
-            getarray folder_number 5 i1
-            getarray full_folder_name 38 folder_number
-            getarray file_time_record 6 i1
-            getarray file_name 7 i1
-            if bigfile_parameters == 0x24
-                getarray file_09 8 i1
-            endif
-            if bigfile_parameters >= 0x2a
-                getarray file_09 8 i1
-                getarray file_sha1 9 i1
-                getarray file_11 10 i1
-                if bigfile_parameters == 0x2b
-                    getarray file_12 11 i1
-                endif
-            endif
-            string full_file_name + full_folder_name
-            string full_file_name + file_name
-            putarray 11 i1 full_file_name
-            # (todo) adjust the file size by ratting out the padding
-            # which is all but impossible to do given that
-            # "file size" fields also take into account
-            # all the padding generated by the archive itself
-            if split_bf = 0
-                goto file_offset
-                get real_file_size long
-                savepos real_file_offset
-                log full_file_name real_file_offset real_file_size
-            elif split_bf = 1
-                for bf_number = 0 < total_bf_parts
-                    xmath next_number "bf_number + 1"
-                    getarray split_bf_name 128 bf_number
-                    getarray split_bf_size 129 bf_number
-                    getarray logical_offset 130 bf_number
-                    getarray next_offset 130 next_number
-                    putarray 131 bf_number offset_passthrough
-                    if file_offset <= next_offset
-                        # (todo) what if they're not stored sequentially?
-                        open FDSE split_bf_name 1
-                        xmath split_file_offset "file_offset - logical_offset"
-                        goto split_file_offset 1
-                        get real_file_size long 1
-                        savepos split_file_offset 1
-                        xmath offset_passthrough "split_file_offset + real_file_size"
-                        putarray 132 bf_number offset_passthrough
-                        if offset_passthrough >= split_bf_size
-                            math backup_one = bf_number
-                            print "backup %backup_one%"
-                            math backup_two = next_number
-                            print "backup %backup_two%"
-                            xmath first_chunk_size "split_bf_size - split_fiie_offset"
-                            math chunk_offset = split_file_offset
-                            append
-                            for size = 0 u< real_file_size
-                                # (todo) implement some "forward-thinking" technique for stored
-                                # files that weigh in at about much more size than the
-                                # split .bf archives in which said files are stored into,
-                                # harder to test though as they're not seen in any capacity.
-                                # in theory i could've pulled off the same feat as siren.bms
-                                # since that script demanded a lot from me when it came to these
-                                # split numbered files (siren.000, siren.001, you get the idea),
-                                # but the difference is that sally_clean.bf1 and onwards
-                                # have a significantly smaller file size (256MB)
-                                # than sally_clean.bf0 (512MB) unlike those siren archives which
-                                # only have a static file size to go with (512MB).
-                                # so there's no other way except for the following.
-                                getarray target_bf_name 128 backup_one
-                                getarray target_bf_size 129 backup_one
-                                getarray next_bf_offset 130 backup_two
-                                open FDSE target_bf_name 2
-                                if size = 0
-                                    xmath chunk_size "split_bf_size - chunk_offset"
-                                endif
-                                log full_file_name chunk_offset chunk_size 2
-                                math size + chunk_size
-                                math chunk_offset = 0
-                                xmath chunk_size "offset_passthrough - (next_bf_offset - logical_offset)"
-                                math backup_one + 1
-                                if backup_two <= total_bf_parts
-                                    math backup_two + 1
-                                endif
-                            next
-                            append
-                        else
-                            log full_file_name split_file_offset real_file_size 1
-                        endif
-                        break
-                    endif
-                next bf_number
-            endif
-        next i1
-    endif
+	if bigfile_sign == 0x414245 # "ABE"
+		for i2 = 0 < folders2
+			set full_folder_name string ""
+			getarray folder_name 32 i2
+			getarray previous_folder 33 i2
+			getarray next_folder 34 i2
+			getarray neighbor_folder 35 i2
+			getarray flagship_title 36 i2
+			getarray folder_06 37 i2
+			math keyword_number = 0
+			putarray 64 keyword_number folder_name
+			math keyword_number + 1
+			if previous_folder != 32bit_max_number
+				for
+					getarray folder_name 32 previous_folder
+					getarray previous_folder 33 previous_folder
+					putarray 64 keyword_number folder_name
+					math keyword_number + 1
+					if previous_folder == 32bit_max_number
+						break
+					endif
+				next
+			endif
+			math max_names_for_this_folder = keyword_number
+			xmath name_startoff "keyword_number - 1"
+			for nk = 0 < max_names_for_this_folder
+				getarray folder_name 64 name_startoff
+				math name_startoff - 1
+				string full_folder_name + folder_name
+				string full_folder_name + "/"
+			next nk
+			putarray 38 i2 full_folder_name
+		next i2
+
+		for i1 = 0 < files2
+			set full_file_name string ""
+			getarray file_name 0 i1
+			getarray file_02 1 i1
+			getarray folder_number 2 i1
+			getarray full_folder_name 38 folder_number
+			getarray file_04 3 i1
+			getarray encapsulated_size 4 i1
+			getarray file_timestamp 5 i1
+			getarray file_name_hash 6 i1
+			getarray file_08 7 i1
+			getarray file_offset 8 i1
+			getarray block_size 9 i1
+			getarray file_size 10 i1
+			getarray file_12 11 i1
+			getarray file_13 12 i1
+			getarray file_14 13 i1
+			getarray file_15 14 i1
+			getarray file_16 15 i1
+			string full_file_name + full_folder_name
+			string full_file_name + file_name
+			goto file_offset
+			get compressed_file_size long
+			get original_file_size long
+			xmath real_file_offset "file_offset + 0x20"
+		next i1
+	else
+		for i2 = 0 < folders2
+			set full_folder_name string ""
+			getarray folder_01 32 i2
+			getarray next_folder 33 i2
+			getarray next_neighbor_folder 34 i2
+			getarray previous_neighbor_folder 35 i2
+			getarray previous_folder 36 i2
+			getarray folder_name 37 i2
+			math keyword_number = 0
+			putarray 64 keyword_number folder_name
+			math keyword_number + 1
+			if previous_folder != 32bit_max_number
+				for
+					getarray previous_folder 36 previous_folder
+					getarray folder_name 37 previous_folder
+					putarray 64 keyword_number folder_name
+					math keyword_number + 1
+					if previous_folder == 0
+						break
+					endif
+				next
+			endif
+			math max_names_for_this_folder = keyword_number
+			xmath name_startoff "keyword_number - 1"
+			for nk = 0 < max_names_for_this_folder
+				getarray folder_name 64 name_startoff
+				math name_startoff - 1
+				string full_folder_name + folder_name
+				string full_folder_name + "/"
+			next nk
+			putarray 38 i2 full_folder_name
+		next i2
+
+		for i1 = current_file < files2
+			log MEMORY_FILE20 0 0
+			set full_file_name string ""
+			getarray file_offset 0 i1
+			getarray file_name_hash 1 i1
+			getarray file_size 2 i1
+			getarray next_neighbor_file 3 i1
+			getarray previous_neighbor_file 4 i1
+			getarray folder_number 5 i1
+			getarray full_folder_name 38 folder_number
+			getarray file_time_record 6 i1
+			getarray file_name 7 i1
+			if bigfile_parameters == 0x24
+				getarray file_09 8 i1
+			endif
+			if bigfile_parameters >= 0x2a
+				getarray file_09 8 i1
+				getarray file_sha1 9 i1
+				getarray file_11 10 i1
+				if bigfile_parameters == 0x2b
+					getarray file_12 11 i1
+				endif
+			endif
+			string full_file_name + full_folder_name
+			string full_file_name + file_name
+			putarray 11 i1 full_file_name
+			# (todo) adjust the file size by ratting out the padding
+			# which is all but impossible to do given that
+			# "file size" fields also take into account
+			# all the padding generated by the archive itself
+			if split_bf = 0
+				goto file_offset
+				get real_file_size long
+				/*
+				savepos current_offset
+				log MEMORY_FILE20 current_offset padded_file_size_02
+				math real_file_size = 0
+				goto 0 MEMORY_FILE20
+				get is_zero long MEMORY_FILE20
+				if is_zero == 0
+					math real_file_size = 0
+				endif
+				goto 0 MEMORY_FILE20
+				get is_ipum long MEMORY_FILE20
+				if is_ipum == 0x6d757069 # "ipum"
+					get ipum_raw_size long MEMORY_FILE20
+					math real_file_size + 8
+					math real_file_size + ipum_raw_size
+				endif
+				goto 0 MEMORY_FILE20
+				get is_mtx long MEMORY_FILE20
+				if is_mtx == 0x2078746d # "mtx "
+					# (todo) size not correct?
+					goto 8 MEMORY_FILE20
+					get mtx_raw_size long MEMORY_FILE20
+					math real_file_size + 8
+					math real_file_size + mtx_raw_size
+				endif
+				goto 0 MEMORY_FILE20
+				get is_riff long MEMORY_FILE20
+				if is_riff == 0x46464952 # "RIFF"
+					for real_file_size = 0 < padded_file_size_02
+						goto real_file_size MEMORY_FILE20
+						get riff_chunk_fourcc long MEMORY_FILE20
+						get riff_chunk_size long MEMORY_FILE20
+						math real_file_size + 8
+						if riff_chunk_fourcc == 0x46464952
+							get riff_wave_type long MEMORY_FILE20
+							math real_file_size + 4
+						endif
+						if riff_chunk_fourcc != 0
+							math real_file_size + riff_chunk_size
+						else
+							break
+						endif
+					next
+				goto 0 MEMORY_FILE20
+				print "%full_file_name%"
+				*/
+				savepos real_file_offset
+				log full_file_name real_file_offset real_file_size
+			elif split_bf = 1
+				for bf_number = 0 < total_bf_parts
+					xmath next_number "bf_number + 1"
+					getarray split_bf_name 128 bf_number
+					getarray split_bf_size 129 bf_number
+					getarray logical_offset 130 bf_number
+					getarray next_offset 130 next_number
+					putarray 131 bf_number offset_passthrough
+					if file_offset <= next_offset
+						# (todo) what if they're not stored sequentially?
+						open FDSE split_bf_name 1
+						xmath split_file_offset "file_offset - logical_offset"
+						goto split_file_offset 1
+						get real_file_size long 1
+						savepos split_file_offset 1
+						xmath offset_passthrough "split_file_offset + real_file_size"
+						putarray 132 bf_number offset_passthrough
+						if offset_passthrough >= split_bf_size
+							math backup_one = bf_number
+							print "backup %backup_one%"
+							math backup_two = next_number
+							print "backup %backup_two%"
+							xmath first_chunk_size "split_bf_size - split_fiie_offset"
+							math chunk_offset = split_file_offset
+							append
+							for size = 0 u< real_file_size
+								# (todo) implement some "forward-thinking" technique for stored
+								# files that weigh in at about much more size than the
+								# split .bf archives in which said files are stored into,
+								# harder to test though as they're not seen in any capacity.
+								# in theory i could've pulled off the same feat as siren.bms
+								# since that script demanded a lot from me when it came to these
+								# split numbered files (siren.000, siren.001, you get the idea),
+								# but the difference is that sally_clean.bf1 and onwards
+								# have a significantly smaller file size (256MB)
+								# than sally_clean.bf0 (512MB) unlike those siren archives which
+								# only have a static file size to go with (512MB).
+								# so there's no other way except for the following.
+								getarray target_bf_name 128 backup_one
+								getarray target_bf_size 129 backup_one
+								getarray next_bf_offset 130 backup_two
+								open FDSE target_bf_name 2
+								if size = 0
+									xmath chunk_size "split_bf_size - chunk_offset"
+								endif
+								log full_file_name chunk_offset chunk_size 2
+								math size + chunk_size
+								math chunk_offset = 0
+								xmath chunk_size "offset_passthrough - (next_bf_offset - logical_offset)"
+								math backup_one + 1
+								if backup_two <= total_bf_parts
+									math backup_two + 1
+								endif
+							next
+							append
+						else
+							log full_file_name split_file_offset real_file_size 1
+						endif
+						break
+					endif
+				next bf_number
+			endif
+		next i1
+	endif
 endfunction
- 
+
 startfunction decrypt_bigfile_header
-    goto 0x10
-    get normal_key_01 long
-    get normal_key_02 long
-    get inverted_key_01 long
-    get inverted_key_02 long
-    if normal_key_01 == normal_key_02
-        # 0 for both variables
-        math normal_key == normal_key_02
-    endif
-    if inverted_key_01 == inverted_key_02
-        # -1 for both variables
-        math inverted_key == inverted_key_02
-    endif
-    goto 4
-    log MEMORY_FILE 4 0x28
-    xmath passes "0x28 / 4"
-    math file_number = -1
-    callfunction decrypt_block 1
-    goto 0 file_number
-    callfunction read_bigfile_header 1
+	goto 0x10
+	get normal_key_01 long
+	get normal_key_02 long
+	get inverted_key_01 long
+	get inverted_key_02 long
+	if normal_key_01 == normal_key_02
+		# 0 for both variables
+		math normal_key == normal_key_02
+	endif
+	if inverted_key_01 == inverted_key_02
+		# -1 for both variables
+		math inverted_key == inverted_key_02
+	endif
+	goto 4
+	log MEMORY_FILE 4 0x28
+	xmath passes "0x28 / 4"
+	math file_number = -1
+	callfunction decrypt_block 1
+	goto 0 file_number
+	callfunction read_bigfile_header 1
 endfunction
- 
+
 startfunction decrypt_block
-    for pass = 0 < passes
-        get target long
-        xmath decoded "target ^ normal_key"
-        put decoded long file_number
-    next pass
+	for pass = 0 < passes
+		get target long
+		xmath decoded "target ^ normal_key"
+		put decoded long file_number
+	next pass
 endfunction
- 
+
 startfunction fetch_entry_name
-    if bf_name == "avatar_bin_wii"
-        getdstring entry_name 0x80 file_number
-    else
-        getdstring entry_name 0x40 file_number
-    endif
+	if bf_name == "avatar_bin_wii"
+		getdstring entry_name 0x80 file_number
+	else
+		getdstring entry_name 0x40 file_number
+	endif
 endfunction
- 
+
 startfunction read_abe_header
-    get abe_01 long
-    get abe_02 long
-    get file_tabs long
-    get folder_tabs long
-    get abe_05 long
-    get file_tab_offset long
-    get abe_07 long
-    get folder_tab_offset long
-    get files1 long
-    get folders1 long
-    get files2 long
-    get folders2 long
-    get abe_13 long
-    get abe_14 long
-    get abe_15 long
-    goto file_tab_offset
-    math tab_type = 1
-    math tabs = file_tabs
-    callfunction read_abe_tab 1
-    goto folder_tab_offset
-    math tab_type = 2
-    math tabs = folder_tabs
-    callfunction read_abe_tab 1
-    callfunction final_step 1
+	get abe_01 long
+	get abe_02 long
+	get file_tabs long
+	get folder_tabs long
+	get abe_05 long
+	get file_tab_offset long
+	get abe_07 long
+	get folder_tab_offset long
+	get files1 long
+	get folders1 long
+	get files2 long
+	get folders2 long
+	get abe_13 long
+	get abe_14 long
+	get abe_15 long
+	goto file_tab_offset
+	math tab_type = 1
+	math tabs = file_tabs
+	callfunction read_abe_tab 1
+	goto folder_tab_offset
+	math tab_type = 2
+	math tabs = folder_tabs
+	callfunction read_abe_tab 1
+	callfunction final_step 1
 endfunction
- 
+
 math file = 0
 math folder = 0
 startfunction read_abe_tab
-    for i = 0 < tabs
-        get entries long
-        get tab_02 long
-        get tab_03 long
-        if tab_02 == 0
-            math next_index_offset = tab_03
-        endif
-        math file_number = 0
-        if tab_type = 1
-            callfunction parse_file_tabs_02 1
-        elif tab_type = 2
-            callfunction parse_folder_tabs_02 1
-        endif
-        if tab_02 == 0
-            goto next_index_offset
-        endif
-    next i
+	for i = 0 < tabs
+		get entries long
+		get tab_02 long
+		get tab_03 long
+		if tab_02 == 0
+			math next_index_offset = tab_03
+		endif
+		math file_number = 0
+		if tab_type = 1
+			callfunction parse_file_tabs_02 1
+		elif tab_type = 2
+			callfunction parse_folder_tabs_02 1
+		endif
+		if tab_02 == 0
+			goto next_index_offset
+		endif
+	next i
 endfunction
- 
+
 startfunction parse_file_tabs_02
-    for i1 = 0 < entries
-        callfunction fetch_entry_name 1
-        set file_01 string entry_name
-        putarray 0 file file_01
-        getdstring file_02 0x10 file_number
-        putarray 1 file file_02
-        get file_03 long file_number
-        putarray 2 file file_03
-        get file_04 long file_number
-        putarray 3 file file_04
-        get file_05 long file_number
-        putarray 4 file file_05
-        get file_06 time64 file_number
-        putarray 5 file file_06
-        get file_07 long file_number
-        putarray 6 file file_07
-        get file_08 long file_number
-        putarray 7 file file_08
-        get file_09 long file_number
-        putarray 8 file file_09
-        get file_10 long file_number
-        putarray 9 file file_10
-        get file_11 long file_number
-        putarray 10 file file_11
-        get file_12 long file_number
-        putarray 11 file file_12
-        get file_13 long file_number
-        putarray 12 file file_13
-        get file_14 long file_number
-        putarray 13 file file_14
-        get file_15 long file_number
-        putarray 14 file file_15
-        getdstring file_16 0x40 file_number
-        putarray 15 file file_16
-        math file + 1
-        if file == files2
-            break
-        endif
-    next i1
+	for i1 = 0 < entries
+		callfunction fetch_entry_name 1
+		set file_01 string entry_name
+		putarray 0 file file_01
+		getdstring file_02 0x10 file_number
+		putarray 1 file file_02
+		get file_03 long file_number
+		putarray 2 file file_03
+		get file_04 long file_number
+		putarray 3 file file_04
+		get file_05 long file_number
+		putarray 4 file file_05
+		get file_06 time64 file_number
+		putarray 5 file file_06
+		get file_07 long file_number
+		putarray 6 file file_07
+		get file_08 long file_number
+		putarray 7 file file_08
+		get file_09 long file_number
+		putarray 8 file file_09
+		get file_10 long file_number
+		putarray 9 file file_10
+		get file_11 long file_number
+		putarray 10 file file_11
+		get file_12 long file_number
+		putarray 11 file file_12
+		get file_13 long file_number
+		putarray 12 file file_13
+		get file_14 long file_number
+		putarray 13 file file_14
+		get file_15 long file_number
+		putarray 14 file file_15
+		getdstring file_16 0x40 file_number
+		putarray 15 file file_16
+		math file + 1
+		if file == files2
+			break
+		endif
+	next i1
 endfunction
- 
+
 startfunction parse_folder_tabs_02
-    for i2 = 0 < entries
-        callfunction fetch_entry_name 1
-        set folder_01 string entry_name
-        putarray 32 folder folder_01
-        get folder_02 long file_number
-        putarray 33 folder folder_02
-        get folder_03 long file_number
-        putarray 34 folder folder_03
-        get folder_04 long file_number
-        putarray 35 folder folder_04
-        get folder_05 long file_number
-        putarray 36 folder folder_05
-        get folder_06 long file_number
-        putarray 37 folder folder_06
-        getdstring folder_07 0x10 file_number
-        putarray 38 folder folder_07
-        math folder + 1
-        if folder == folders2
-            break
-        endif
-    next i2
+	for i2 = 0 < entries
+		callfunction fetch_entry_name 1
+		set folder_01 string entry_name
+		putarray 32 folder folder_01
+		get folder_02 long file_number
+		putarray 33 folder folder_02
+		get folder_03 long file_number
+		putarray 34 folder folder_03
+		get folder_04 long file_number
+		putarray 35 folder folder_04
+		get folder_05 long file_number
+		putarray 36 folder folder_05
+		get folder_06 long file_number
+		putarray 37 folder folder_06
+		getdstring folder_07 0x10 file_number
+		putarray 38 folder folder_07
+		math folder + 1
+		if folder == folders2
+			break
+		endif
+	next i2
 endfunction
+
+startfunction read_bf64_header
+	# "BF64" files doesn't seem to use any tricks in regards to header encryption
+	# same case with "ABE" files
+	get indices long
+	get bf64_parameters long
+	get files long
+	get folders long
+	get bf64_06 long
+	get bf64_07 long
+	get bf64_08 long
+	get univers_oin long
+	get bf64_10 long
+	get bf64_11 long
+	get bf64_file_info_size long
+	get bf64_folder_info_size long
+	get bf64_file_info_offset longlong
+	get bf64_folder_info_offset longlong
+	goto bf64_file_info_offset
+	getdstring file_pre_info 0x0c
+	math file = 0
+	for i = 0 < files
+		get file_01 long
+		putarray 0 i file_01
+		get file_02 longlong
+		putarray 1 i file_02
+		get file_03 long
+		putarray 2 i file_03
+		get file_04 long
+		putarray 3 i file_04
+		get file_05 long
+		putarray 4 i file_05
+		get file_06 long
+		putarray 5 i file_06
+		get file_07 time
+		putarray 6 i file_07
+		getdstring file_08 0x40
+		putarray 7 i file_08
+		get file_09 long
+		putarray 8 i file_09
+		get file_10 long
+		putarray 9 i file_10
+	next i
+	goto bf64_folder_info_offset
+	getdstring file_pre_info 0x0c
+	for i = 0 < folders
+		get folder_01 long
+		putarray 10 i folder_01
+		get folder_02 long
+		putarray 11 i folder_02
+		get folder_03 long
+		putarray 12 i folder_03
+		get folder_04 long
+		putarray 13 i folder_04
+		get folder_05 long
+		putarray 14 i folder_05
+		getdstring folder_06 0x40
+		putarray 15 i folder_06
+	next i
+	for i = 0 < folders
+		set full_folder_name string ""
+		getarray first_file_within_folder 10 i
+		getarray successor_folder 11 i
+		getarray next_folder 12 i
+		getarray previous_folder 13 i
+		getarray predecessor_folder 14 i
+		getarray folder_name 15 i
+		math keyword = 0
+		putarray 64 keyword folder_name
+		math keyword + 1
+		if predecessor_folder != 32bit_max_number
+			for
+				getarray folder_name 15 predecessor_folder
+				getarray predecessor_folder 14 predecessor_folder
+				putarray 64 keyword folder_name
+				math keyword + 1
+				if predecessor_folder == 32bit_max_number
+					break
+				endif
+			next
+		endif
+		math max_names_for_this_folder = keyword
+		xmath name_startoff "keyword - 1"
+		for nk = 0 < max_names_for_this_folder
+			getarray folder_name 64 name_startoff
+			math name_startoff - 1
+			string full_folder_name + folder_name
+			string full_folder_name + "/"
+		next nk
+		putarray 16 i full_folder_name
+	next i
+	for i = 0 < files
+		set full_name string ""
+		getarray file_hash_01 0 i
+		getarray file_offset 1 i
+		getarray file_size_01 2 i
+		getarray next_file 3 i
+		getarray previous_file 4 i
+		getarray folder_number 5 i
+		getarray file_timestamp 6 i
+		getarray file_name 7 i
+		getarray file_08 8 i
+		getarray file_09 9 i
+		goto file_offset
+		get file_size_02 long
+		if file_size_01 == file_size_02
+			math file_size == file_size_01
+		endif
+		math file_offset + 4
+		getarray full_folder_name 16 folder_number
+		string full_name p "%s%s" full_folder_name file_name
+		log full_name file_offset file_size
+	next i
+endfunction
+
+/*
+startfunction bf_file_preparatory
+	if bf_ext == "bf"
+		math split_archive = 0
+	elif bf_ext == "bf0"
+		math split_archive = 1
+	elif bf_ext == "001"
+		math split_archive = 2
+	endif
+
+	if split_archive = 0
+		goto file_offset
+		get file_size_02 long
+		if file_size_01 == file_size_02
+			math file_size == file_size_02
+			math file_offset + 4
+			log file_name file_offset file_size
+		endif
+	elif split_archive = 1
+		if file_offset <= 0x1fffffff
+			math bf0_size = 0x20000000
+			xmath bf0_number "file_offset / bf0_size"
+			math file_offset_within_split_archive = file_offset
+		elif file_offset <= 0x2fffffff
+			math bf0_size = 0x10000000
+			xmath bf0_number "(file_offset / bf0_size) - 1"
+			xmath file_offset_within_split_archive "file_offset % 0x20000000"
+		elif file_offset >= 0x30000000
+			math bf0_size = 0x10000000
+			xmath bf0_number "(file_offset / bf0_size) - 1"
+			xmath file_offset_within_split_archive "file_offset % 0x10000000"
+		endif
+		if bf0_number = 0
+			math bf0_backup_size = 0x20000000
+		elif bf0_number >= 1
+			math bf0_backup_size = 0x10000000
+		endif
+		putarray 103 bf0_number bf0_backup_size
+		string bf0_initial_loading_filename p "%s.bf%d" bf_name bf0_number
+		open fdse bf0_initial_loading_filename 1
+		goto file_offset_within_split_archive 1
+		get file_size_02 long 1
+		if file_size_01 == file_size_02
+			math file_size == file_size_02
+			math file_offset_within_split_archive + 4
+			xmath number_of_chunks_per_file_within_split_archive "((file_offset_within_split_archive + file_size) / bf0_backup_size) + 1"
+			xmath last_chunk "number_of_chunks_per_file_within_split_archive - 1"
+			math bf0_temp_number_01 = bf0_number
+			append
+			for chk_01 = 0 < number_of_chunks_per_file_within_split_archive
+				if chk_01 = 0
+					if number_of_chunks_per_file_within_split_archive == 1
+						math split_file_size == file_size
+					else
+						xmath split_file_size "bf0_backup_size - file_offset_within_split_archive"
+					endif
+					log file_name file_offset_within_split_archive split_file_size 1
+				else
+					math bf0_temp_number_01 + 1
+					xmath bf0_temp_number_02 "bf0_temp_number_01 - bf0_number"
+					xmath bf0_temp_size "bf0_temp_number_02 * bf0_backup_size"
+					string bf0_next_loading_filename p "%s.bf%d" bf_name bf0_temp_number_01
+					open fdse bf0_next_loading_filename 2
+					if chk_01 = last_chunk
+						xmath split_file_size "(file_offset_within_split_archive + file_size) - bf0_temp_size"
+					else
+						xmath split_file_size "bf0_backup_size % (file_offset_within_split_archive + file_size)"
+					endif
+					math file_offset_within_split_archive = 0
+					log file_name file_offset_within_split_archive split_file_size 2
+				endif
+			next chk_01
+			append
+		endif
+	elif split_archive = 2
+		# KingKongTheGame.001, KingKongTheGame.002
+		math bf_001_size = 0x2bc00000
+	endif
+endfunction
+
+startfunction extract
+	if bf_ext == "bf0"
+		if offset >= 0x20000000
+			math bf_bf0_size = 0x10000000
+		else
+			math bf_bf0_size = 0x20000000
+		endif
+		
+		if offset >= 0x30000000
+			xmath bf_num1 "(offset / 0x10000000) - 1"
+		else
+			xmath bf_num1 "(offset / 0x20000000)"
+		endif
+		xmath split_offset1 "(offset % bf_bf0_size) + 4"
+		xmath split_offset2 "split_offset1 + size"
+		xmath split_chunks "(split_offset2 / bf_bf0_size) + 1"
+		
+		string bf_load p "%s.bf%01d" bf_name bf_num1
+		open fdse bf_load 1
+
+		if split_chunks >= 2
+			if xored = 1
+				filexor ""
+			endif
+			
+			xmath last_chunk "split_chunks - 1"
+			
+			append
+			for x = 0 < split_chunks
+				if x = 0
+					xmath split_size1 "bf_bf0_size - split_offset1"
+					log finalname split_offset1 split_size1 1
+				else
+					math temp1_bf_num = bf_num1
+					math temp1_bf_num + 1
+					if bf_num1 >= 2
+						xmath temp2_bf_num "temp1_bf_num % bf_num1"
+					else
+						xmath temp2_bf_num "(temp1_bf_num % bf_num1) + 1"
+					endif
+					xmath temp_bf_size "(temp2_bf_num) * bf_bf0_size"
+					string bf_temp_load p "%s.bf%01d" bf_name temp1_bf_num
+					open fdse bf_temp_load 2
+					set split_offset1 long 0
+					if x = last_chunk
+						xmath split_size1 "split_offset2 - temp_bf_size"
+					else
+						xmath split_size1 "bf_bf0_size % split_offset2"
+					endif
+					log finalname split_offset1 split_size1 2
+				endif
+			next x
+			append
+			
+			if xored = 1
+				filexor "\xb3\x98\xcc\x66"
+			endif
+		endif
+		
+		if xored = 0
+			if split_chunks <= 1
+				log finalname split_offset1 size 1
+			endif
+		elif xored = 1
+			if split_chunks <= 1
+				filexor ""
+				log finalname split_offset1 size 1
+				filexor "\xb3\x98\xcc\x66"
+			endif
+		endif
+	elif bf_ext == "001"
+		math bf_001_size == 0x2bc00000
+		xmath bf_num2 "(offset / bf_001_size) + 1"
+		xmath split_offset1 "(offset % bf_001_size) + 4"
+		xmath split_offset2 "split_offset1 + size"
+		xmath split_chunks "(split_offset2 / bf_001_size) + 1"
+		
+		string bf_load p "%s.%03d" bf_name bf_num2
+		open fdse bf_load 1
+
+		if split_chunks >= 2
+			if xored = 1
+				filexor ""
+			endif
+			
+			xmath last_chunk "split_chunks - 1"
+			
+			append
+			for x = 0 < split_chunks
+				if x = 0
+					xmath split_size1 "bf_001_size - split_offset1"
+					log finalname split_offset1 split_size1 1
+				else
+					math temp_bf_num = bf_num2
+					math temp_bf_num + 1
+					xmath temp_bf_size "((temp_bf_num % bf_num2) + 1) * bf_001_size"
+					string bf_temp_load p "%s.%03d" bf_name temp_bf_num
+					open fdse bf_temp_load 2
+					set split_offset1 long 0
+					if x = last_chunk
+						xmath split_size1 "split_offset2 - temp_bf_size"
+					else
+						xmath split_size1 "bf_001_size % split_offset2"
+					endif
+					log finalname split_offset1 split_size1 2
+				endif
+			next x
+			append
+			
+			if xored = 1
+				filexor "\xb3\x98\xcc\x66"
+			endif
+		endif
+		
+		if xored = 0
+			if split_chunks <= 1
+				log finalname split_offset1 size 1
+			endif
+		elif xored = 1
+			if split_chunks <= 1
+				filexor ""
+				log finalname split_offset1 size 1
+				filexor "\xb3\x98\xcc\x66"
+			endif
+		endif
+	else
+		math offset + 4
+		if xored = 0
+			log finalname offset size
+		elif xored = 1
+			filexor ""
+			log finalname offset size
+			filexor "\xb3\x98\xcc\x66"
+		endif
+	endif
+endfunction
+*/
