@@ -1,0 +1,38 @@
+# My Fitness Coach (Wii) - *.pak(MRQZ)
+# ---
+# pak files from this game are mostly 1-2MB in size, sometimes 300-500KB even
+
+get pak_signature long
+if pak_signature != 0x5a51524d # "MRQZ"
+	cleanexit
+endif
+get pak_size long
+get pak_03 short
+get pak_info_offset short
+math pak_info_offset + 8
+get pak_files long
+get pak_data_size long
+get pak_07 long
+get pak_08 long
+xmath pak_header_size "pak_08 - pak_07"
+xmath pak_base_offset "pak_info_offset + pak_header_size"
+log MEMORY_FILE pak_info_offset pak_header_size
+goto 0 MEMORY_FILE
+for i = 0 < pak_files
+	getdstring file_name 0x40 MEMORY_FILE
+	putarray 0 i file_name
+	get file_offset long MEMORY_FILE
+	math file_offset + pak_base_offset
+	putarray 1 i file_offset
+	get file_size long MEMORY_FILE
+	putarray 2 i file_size
+	get file_04 long MEMORY_FILE
+	putarray 3 i file_04
+next i
+for i = 0 < pak_files
+	getarray file_name 0 i
+	getarray file_offset 1 i
+	getarray file_size 2 i
+	getarray file_04 3 i
+	log file_name file_offset file_size
+next i
