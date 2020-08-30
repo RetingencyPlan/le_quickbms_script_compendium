@@ -441,12 +441,14 @@ startfunction final_step
 			math keyword_number + 1
 			if previous_folder != 32bit_max_number
 				for
-					getarray previous_folder 36 previous_folder
 					getarray folder_name 37 previous_folder
+					getarray previous_folder_02 36 previous_folder
 					putarray 64 keyword_number folder_name
 					math keyword_number + 1
-					if previous_folder == 0
+					if previous_folder_02 == 32bit_max_number
 						break
+					else
+						math previous_folder == previous_folder_02
 					endif
 				next
 			endif
