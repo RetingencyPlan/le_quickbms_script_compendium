@@ -891,6 +891,10 @@ startfunction extract_sound_frame_from_singular_dat
 			log chunk_name 0 m3_size MEMORY_FILE3
 			append
 			log MEMORY_FILE3 0 0
+		else
+			append
+			log chunk_name chunk_position audio_chunk_size
+			append
 		endif
 	endif
 endfunction
