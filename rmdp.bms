@@ -204,7 +204,7 @@ if remedy_extension == "bin"
 		callfunction array_listing_of_file_entry_within_sector 1
 		getarray full_directory_name 102 directory_base_number
 		string full_file_name p "%s\%s" full_directory_name file_name_string
-		#log full_file_name file_offset file_size 1
+		log full_file_name file_offset file_size 1
 	next f1
 elif remedy_extension == "xml"
 	# SOON(TM)
