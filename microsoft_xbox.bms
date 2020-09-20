@@ -3,35 +3,54 @@ get dvd_name filename
 
 math xbox_type = 0
 
-if dvd_size = 0xa290000
-	if dvd_name != "Data0000"
-		print " Data0000 is what you want to use the script with instead. "
-		cleanexit
-	else
-		print " these types will be handled one day. "
-		cleanexit
-	endif
+if dvd_name == "Data0000"
 	math xbox_type = 1
+	print " file is too complex for this script to handle for various reasons. \n a severe lack of documentation regarding the format used for this file is one of them. "
+	cleanexit
 endif
 
 if xbox_type = 0
-	math xbox_file_system_base_number = 0x30600
-	putarray 0 0 0x30600 # Xbox
-	putarray 0 1 0x1fb20 # Xbox 360
+	/*
+	putarray 0 0 0 # just a zero (coming right from Xbox 360 disc dumps by scene group PI, scrambled zeroes and all that)
+	putarray 0 1 0x4100
+	putarray 0 2 0x1fb20 # Xbox 360
+	putarray 0 3 0x30600 # Xbox
+	*/
+	# all Xbox/Xbox360 DVD images (no known exceptions aside from PI/RADIAN dumps)
+	# have a partition using some sort of ISO9660 file system that contains a video intended to be compatible with any device
+	# telling the end user that this disk is only compatible with Xbox/Xbox360 and nothing else,
+	# alongside some system update files if said disk comes from an individual Xbox360 product (e.g. a game).
+	# if you want those files turn to IsoBuster, 7-Zip or basically any program that can handle said filesystem.
+	# this is not the focus of this script however as said file system is known by some quickBMS programmers
+	# to be very pesky to handle...
 	math padding_number = 0x20
-	for i = 0 < 2
-		getarray xbox_file_system_base_number 0 i
+	math xbox_file_system_base_number = 0
+	print " finding Xbox file system. \n please wait... "
+	for i = 0 < 0x30601
 		xmath goto_01 "(xbox_file_system_base_number + padding_number) << 11"
 		goto goto_01
 		getdstring is_mxm 0x14
 		if is_mxm == "MICROSOFT*XBOX*MEDIA"
+			print " the Xbox file system has been found. \n the script can now work on it. "
 			math xbox_file_system_starting_offset = goto_01
 			break
+		else
+			math xbox_file_system_base_number + 1
 		endif
 	next i
 endif
 if xbox_type = 1
 	math xbox_file_system_base_number = 4
+	math padding_number = 0x20
+	xmath goto_01 "xbox_file_system_base_number << 11"
+	goto goto_01
+	get is_xsf long
+	if is_xsf == 0x1a465358 # "XSF\x1a"
+		get xsf_02 long
+		get xsf_03 longlong
+	endif
+	xmath goto_02 "(xbox_file_system_base_number + padding_number) << 11"
+	math xbox_file_system_starting_offset = goto_02
 endif
 goto xbox_file_system_starting_offset
 for i = 0 < 2
@@ -96,6 +115,9 @@ for j = 0 <= 256
 	putarray 110 j 0
 	putarray 111 j ""
 next j
+if xbox_type != 0
+	cleanexit
+endif
 callfunction parse_mxm 1
 
 startfunction parse_mxm
@@ -141,9 +163,7 @@ startfunction parse_mxm
 				if d6_1_2 != 0
 					math d6_1_1 + 1
 				endif
-				print "div string size %d6_1_1%"
 				xmath d6_2 "(d6_1_1 * 4) + 2"
-				print "pad string size %d6_2%"
 				getdstring dn d6 current_file_number
 				xmath d8 "d6_2 - d6"
 				getdstring dp d8 current_file_number
@@ -180,7 +200,7 @@ startfunction parse_mxm
 		getarray unknown_flag_05 8 directory_entry_to_fetch_from
 		getarray is_directory 9 directory_entry_to_fetch_from
 		getarray is_archive 10 directory_entry_to_fetch_from
-		getarray unknown_flag_07 11 directory_entry_to_fetch_from
+		getarray is_compressed 11 directory_entry_to_fetch_from
 		getarray is_its_own_thing 12 directory_entry_to_fetch_from
 		getarray entry_name 13 directory_entry_to_fetch_from
 		math directory_entry_to_fetch_from + 1
@@ -220,6 +240,8 @@ startfunction parse_mxm
 			if xbox_type = 1
 				math target_offset = file_offset
 				callfunction mxm_helper_02 1
+				math file_offset = data_offset_for_single_spot
+				print "%data_name% - %file_offset%"
 			endif
 			set file_name string ""
 			math name_number = 0
@@ -272,7 +294,13 @@ endfunction
 startfunction mxm_helper_01
 	savepos p1 current_file_number
 	xmath i2 "p1 - current_directory_info_offset"
-	if i2 >= current_directory_size
+	xmath directory_size_limit_1 "current_directory_size / 0x800"
+	xmath directory_size_limit_2 "current_directory_size % 0x800"
+	if directory_size_limit_2 != 0
+		math directory_size_limit_1 + 1
+	endif
+	math directory_size_limit_1 * 0x800
+	if i2 >= directory_size_limit_1
 		break
 	endif
 endfunction
@@ -292,14 +320,10 @@ startfunction mxm_helper_02
 endfunction
 
 startfunction mxm_helper_03
-	math padding_number = 0
-	if xbox_type = 1
-		if i3 != 0
-			# in some cases this padding number can be defined per title.
-			# (todo) could use three previous folders as workarounds for this one...
-			math padding_number = 0x22
-			#math padding_number = 0x132
-		endif
+	if xbox_type = 0
+		math padding_number = 0
+	elif xbox_type = 1
+		math padding_number = 0
 	endif
 	xmath fully_realized_entry_offset "((entry_offset + xbox_file_system_base_number) + padding_number) << 11"
 endfunction
