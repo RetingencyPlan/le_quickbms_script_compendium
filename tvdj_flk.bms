@@ -1,0 +1,52 @@
+# TVDJ (PS2) - *.FLK
+
+get is_flk long
+if is_flk != 0x034b4c46 # "FLK\x03"
+	cleanexit
+endif
+get block_size long
+get info_offset long
+get header_size long
+goto info_offset
+for i1 = 0 < 0x1b
+	get rec_01 short
+	putarray 0 i rec_01
+	get rec_02 short
+	putarray 1 i rec_02
+next i1
+for i2 = 0
+	get hash_01 long
+	get hash_02 long
+	get file_03 long
+	get file_04 long
+	if file_03 == 0
+		break
+	else
+		xmath file_03_01 "(file_03 >> 16) & 0xffff"
+		xmath file_03_02 "file_03 & 0xffff"
+		putarray 0 i2 hash_01
+		putarray 1 i2 hash_02
+		putarray 2 i2 file_03_01
+		putarray 3 i2 file_03_02
+		math file_04 + header_size
+		putarray 4 i2 file_04
+	endif
+next i2
+math files = i2
+math i2 - 1
+for i2 = 0 < files
+	math file_size = 0
+	getarray hash_01 0 i2
+	getarray hash_02 1 i2
+	getarray file_03_01 2 i2
+	getarray file_03_02 3 i2
+	getarray file_04 4 i2
+	string temp_name p "%08x_%08x." hash_01 hash_02
+	if hash_02 != 0xff43a9af
+		xmath i2p "i2 + 1"
+		getarray size_aid 4 i2p
+		xmath file_size "(size_aid - file_04) - (block_size - file_03_01)"
+		math file_offset == file_04
+		log temp_name file_offset file_size
+	endif
+next i2
