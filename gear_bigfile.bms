@@ -1,0 +1,30 @@
+# [ GEAR BigFile] - *.bf/*.big
+# ---
+# Rocky Balboa (PSP)
+
+idstring "[ GEAR BigFile ]"
+get gear_01 long
+get gear_02 long
+get files long
+get gear_04 long
+math gear_off_01 = 0x20
+goto gear_off_01
+for i = 0 < files
+	get entry_01 longlong
+	putarray 0 i entry_01
+next i
+for i = 0 < files
+	get entry_02 long
+	putarray 1 i entry_02
+next i
+for i = 0 < files
+	get entry_03 long
+	putarray 2 i entry_03
+next i
+for i = 0 < files
+	getarray file_offset 0 i
+	getarray file_size 1 i
+	getarray hardcoded_name_hash 2 i
+	string temp_name p "%u." hardcoded_name_hash
+	log temp_name file_offset file_size
+next i
