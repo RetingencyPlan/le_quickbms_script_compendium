@@ -144,8 +144,12 @@ startfunction parse_mxm
 		endif
 		callfunction mxm_helper_01 1
 		if dont_put_this_into_array = 0
+			putarray 1 overall_directory_entry d1
+			putarray 2 overall_directory_entry d2
 			get d3 long current_file_number
+			putarray 3 overall_directory_entry d3
 			get d4 long current_file_number
+			putarray 4 overall_directory_entry d4
 			get d5 byte current_file_number
 			xmath flag_01 "d5 & 1"
 			xmath flag_02 "(d5 >> 1) & 1"
@@ -155,6 +159,14 @@ startfunction parse_mxm
 			xmath flag_06 "(d5 >> 5) & 1"
 			xmath flag_07 "(d5 >> 6) & 1"
 			xmath flag_08 "(d5 >> 7) & 1"
+			putarray 5 overall_directory_entry flag_01
+			putarray 6 overall_directory_entry flag_02
+			putarray 7 overall_directory_entry flag_03
+			putarray 8 overall_directory_entry flag_04
+			putarray 9 overall_directory_entry flag_05
+			putarray 10 overall_directory_entry flag_06
+			putarray 11 overall_directory_entry flag_07
+			putarray 12 overall_directory_entry flag_08
 			get d6 byte current_file_number
 			callfunction mxm_helper_01 1
 			if d6 != 0
@@ -165,23 +177,11 @@ startfunction parse_mxm
 				endif
 				xmath d6_2 "(d6_1_1 * 4) + 2"
 				getdstring dn d6 current_file_number
+				putarray 13 overall_directory_entry dn
 				xmath d8 "d6_2 - d6"
 				getdstring dp d8 current_file_number
 				callfunction mxm_helper_01 1
 			endif
-			putarray 1 overall_directory_entry d1
-			putarray 2 overall_directory_entry d2
-			putarray 3 overall_directory_entry d3
-			putarray 4 overall_directory_entry d4
-			putarray 5 overall_directory_entry flag_01
-			putarray 6 overall_directory_entry flag_02
-			putarray 7 overall_directory_entry flag_03
-			putarray 8 overall_directory_entry flag_04
-			putarray 9 overall_directory_entry flag_05
-			putarray 10 overall_directory_entry flag_06
-			putarray 11 overall_directory_entry flag_07
-			putarray 12 overall_directory_entry flag_08
-			putarray 13 overall_directory_entry dn
 			math current_directory_entry + 1
 			math overall_directory_entry + 1
 		endif
