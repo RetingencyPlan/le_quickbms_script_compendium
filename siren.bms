@@ -1,72 +1,103 @@
-# Siren/Forbidden Siren - siren.tbl/siren.###
+# Siren/Forbidden Siren - taiken.tbl, siren.tbl, siren0.tbl
 
-get tbl_bname basename
+get tbl_name basename
+get tbl_ext extension
 
-open FDDE "tbl"
+if tbl_ext != "tbl"
+	cleanexit
+endif
+
+goto 0
 filexor 0xff
 idstring "SDT4"
 get files long
 get tbl_size long
 get tbl03 long # probably some kind of hash...
-get info_off long
-get names_off long
-get tbl04 long # always 1
-goto info_off
+get file_info_index_offset long
+get file_name_index_offset long
+get tbl04 long # number ranges from 1 to 4...
+goto file_info_index_offset
 math tbl_arcnum = 0
 math tbl_tempnum = 0
 math tbl_arcsize = 0x20000000
 for i = 0 < files
-    get offset long
-    get size long
-    get name_off long
-	
-	if i = 0
-		math tbl05 = offset
+    get file_01 long
+    get file_02 long
+    get file_03 long
+    xmath file_01_01 "file_01 & 0x7fffffff"
+    xmath file_01_02 "(file_01 >> 31) & 1"
+    putarray 0 i file_01_01
+    putarray 1 i file_01_02
+    putarray 2 i file_02
+    math file_03 + file_name_index_offset
+    putarray 3 i file_03
+next i
+
+for i = 0 < files
+	getarray file_sector 0 i
+	getarray dual_layer_flag 1 i
+	getarray file_size 2 i
+	getarray file_name_string_offset 3 i
+	goto file_name_string_offset 0
+	get file_name string
+	if i == 0
+		# literally *every* file is streamed through the disc itself. including the tbl.
+		# because this script wasn't designed for fancy PS2 disc dump handling
+		# through an executable in mind have to devise some workarounds...
+		# (standard disc filesystem exposes the existence of a tbl file plus some numbered files)
+		# on another note, as a limitation of the tbl format, the file sector value in which 
+		# the file is supposed to be streamed from must have a set number
+		# regardless of whether or not said file is in a second DVD layer.
+		math base_sector == file_sector
 	endif
-	
-	math offset - tbl05
-	math offset2 = offset
-	xmath offset "(offset << 11) % tbl_arcsize"
-	
-    savepos tmp
-    math name_off + names_off
-    goto name_off
-    get name string
-    goto tmp
-	
-	xmath tbl_arcnum "offset2 / (tbl_arcsize >> 11)"
-	
-	string full_tbl_load p "%s.%03d" tbl_bname tbl_arcnum
-	open fdse full_tbl_load 1
-	
-	xmath stbl_draft1 "size + offset"
-	xmath stbl_draft2 "(stbl_draft1 / tbl_arcsize) + 1"
-	xmath stbl_draft3 "stbl_draft2 - 1"
-	
+	math file_sector - base_sector
+	xmath file_offset_within_split_part "(file_sector << 11) % tbl_arcsize"
+	xmath tbl_arcnum "file_sector / (tbl_arcsize >> 11)"
+	xmath parts_needed_for_file "((file_offset_within_split_part + file_size) / tbl_arcsize) + 1"
+	xmath last_part "parts_needed_for_file - 1"
+	math size_leftovers == file_size
 	filexor ""
-	if stbl_draft1 u> tbl_arcsize
-		math tbl_tempnum = 0
-		append
-		for xp = 0 < stbl_draft2
-			xmath stbl_draft4 "(tbl_tempnum + xp) * tbl_arcsize"
-			xmath stbl_draft5 "(stbl_draft4 / tbl_arcsize) + tbl_arcnum"
-			string temp_tbl_load p "%s.%03d" tbl_bname stbl_draft5
-			open fdse temp_tbl_load 2
-			if xp = 0
-				xmath size "tbl_arcsize - offset"
+	for j = 0 < parts_needed_for_file
+		if j == 0
+			math targeted_arcnum == tbl_arcnum
+			math arcnum_leftovers == parts_needed_for_file
+		endif
+		callfunction set_load_name 1
+		set arcnum_load string load_name
+		open fdse arcnum_load 1
+		if j == 0
+			if parts_needed_for_file == 1
+				math chunk_size == file_size
 			else
-				set offset long 0
-				if xp == stbl_draft3
-					xmath size "stbl_draft1 - stbl_draft4"
-				else
-					xmath size "tbl_arcsize % stbl_draft1"
-				endif
+				xmath chunk_size "tbl_arcsize - file_offset_within_split_part"
 			endif
-			log name offset size 2
-		next xp
+		else
+			math file_offset_within_split_part == 0
+			xmath chunk_size "(file_offset_within_split_part + size_leftovers) % tbl_arcsize"
+		endif
 		append
-	else
-		log name offset size 1
-	endif
+		log file_name file_offset_within_split_part chunk_size 1
+		append
+		math targeted_arcnum + 1
+		math arcnum_leftovers - 1
+		math size_leftovers - chunk_size
+	next j
 	filexor 0xff
 next i
+
+startfunction set_load_name
+	if tbl04 == 4
+		# crappy work-around for the Asian release of the first Siren game.
+		# that one release in particular was in form of a DVD-9 (an dual-layer DVD) file
+		# meaning that there were effectively *two* layers to choose from when it came
+		# for the game to load whichever data had to be loaded from which layer through
+		# the tbl file that was always streamed from the disc itself.
+		# why it had to be this way was so there was all the essential engine data on one layer
+		# and all the videos needed for the game to play (in standard pss format) on another layer.
+		string load_name p "%s%01d.%03d" tbl_name dual_layer_flag targeted_arcnum
+	elif tbl04 == 1
+		# other releases of the first game didn't have this unique method
+		# of handling things as the Asian release.
+		string load_name p "%s.%03d" tbl_name targeted_arcnum
+	endif
+endfunction
