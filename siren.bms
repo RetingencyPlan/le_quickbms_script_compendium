@@ -15,7 +15,10 @@ get tbl_size long
 get tbl03 long # probably some kind of hash...
 get file_info_index_offset long
 get file_name_index_offset long
-get tbl04 long # number ranges from 1 to 4...
+get tbl04 long
+# ^ number is 0 for the Japanese demo (PAPX-09511)
+# 1 for every single release of the game
+# and 4 for the Cninese release of the game (SCAJ-30003)
 goto file_info_index_offset
 math tbl_arcnum = 0
 math tbl_tempnum = 0
@@ -95,7 +98,7 @@ startfunction set_load_name
 		# why it had to be this way was so there was all the essential engine data on one layer
 		# and all the videos needed for the game to play (in standard pss format) on another layer.
 		string load_name p "%s%01d.%03d" tbl_name dual_layer_flag targeted_arcnum
-	elif tbl04 == 1
+	else
 		# other releases of the first game didn't have this unique method
 		# of handling things as the Asian release.
 		string load_name p "%s.%03d" tbl_name targeted_arcnum
