@@ -12,13 +12,10 @@ filexor 0xff
 idstring "SDT4"
 get files long
 get tbl_size long
-get tbl03 long # probably some kind of hash...
+get tbl03 long # probably some kind of hash
 get file_info_index_offset long
 get file_name_index_offset long
-get tbl04 long
-# ^ number is 0 for the Japanese demo (PAPX-09511)
-# 1 for every single release of the game
-# and 4 for the Cninese release of the game (SCAJ-30003)
+get tbl06 long
 goto file_info_index_offset
 math tbl_arcnum = 0
 math tbl_tempnum = 0
@@ -89,7 +86,7 @@ for i = 0 < files
 next i
 
 startfunction set_load_name
-	if tbl04 == 4
+	if tbl_name == "siren0"
 		# crappy work-around for the Asian release of the first Siren game.
 		# that one release in particular was in form of a DVD-9 (an dual-layer DVD) file
 		# meaning that there were effectively *two* layers to choose from when it came
