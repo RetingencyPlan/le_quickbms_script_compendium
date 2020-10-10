@@ -1,0 +1,25 @@
+# Brian Lara International Cricket 2007 (PS2) - BIGBAG.DAT
+
+get name filename
+if name == "BIGBAG.DAT"
+	endian little
+	goto 0
+	get bbd_size long
+	get bbd_info_file long
+	get bbd_files long
+	goto 0x20
+	getdstring bbd_04 0x40
+	getdstring bbd_build_date 0x10
+	getdstring bbd_build_time 0x10
+	goto 0xa0
+	for i = 0 < bbd_files
+		get file_01 long
+		get file_offset long
+		get file_size long
+		get file_04 long
+		getdstring file_name 0x40
+		log file_name file_offset file_size
+	next i
+else
+	cleanexit
+endif
