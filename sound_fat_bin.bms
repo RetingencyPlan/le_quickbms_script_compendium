@@ -1,0 +1,109 @@
+# Ubisoft - sound.fat + (sound.bin, stream.bin)
+# ---
+# Beowulf: The Game (Windows, PlayStation 3, Xbox 360)
+
+putarray 0 0 ""
+putarray 0 1 "English"
+putarray 0 2 "Japanese"
+putarray 0 3 "German"
+putarray 0 4 "French"
+putarray 0 5 "Spanish"
+putarray 0 6 "Italian"
+putarray 0 7 "Korean"
+putarray 0 8 "TChinese"
+putarray 0 9 "Portuguese"
+putarray 0 10 "SChinese"
+putarray 0 11 "Polish"
+putarray 0 12 "Russian"
+putarray 0 13 "Hungarian"
+putarray 0 14 "Czech"
+
+# these are all of the languages (see above) that were referenced in Beowulf exe
+
+get fat_name filename
+
+if fat_name != "sound.fat"
+	cleanexit
+endif
+
+get fat_sign long
+if fat_sign == 0x0000005a
+	endian little
+elif fat_sign == 0x5a000000
+	endian big
+else
+	cleanexit
+endif
+get languages long
+for i = 0 < languages
+	get lang_num long 0
+	putarray 1 i lang_num
+next i
+get bao_entries long
+string sound_bin_name p "sound.bin"
+open FDSE sound_bin_name 1
+math bao_name_type = 0
+math multilingual = 0
+for i1 = 0 < bao_entries
+	get level_id long
+	get sub_entries long
+	for j1 = 0 < sub_entries
+		math bao_name_type = 1
+		callfunction get_bao_info 1
+	next j1
+next i1
+math multilingual = 1
+for i2 = 0 < languages
+	getarray lang_num 1 i2
+	getarray lang_name 0 lang_num
+	for j2 = 0 < bao_entries
+		get sub_entries long
+		for j3 = 0 < sub_entries
+			math language_sub_entry = j2
+			math language_sub_entry + 1
+			math bao_name_type = 2
+			callfunction get_bao_info 1
+		next j3
+	next j2
+next i2
+
+startfunction get_bao_info
+	get bao_id long
+	get bao_offset long
+	get bao_size long
+	if bao_name_type = 1
+		#string bao_name p "%08x/%08x.bao" level_id bao_id
+		string bao_name p "%08x.bao" bao_id
+	elif bao_name_type = 2
+		#string bao_name p "%s/%04d/%08x.bao" lang_name language_sub_entry bao_id
+		string bao_name p "%s/%08x.bao" lang_name bao_id
+	else
+		set bao_name string "00000000.bao"
+	endif
+	xmath is_stream "bao_id & 0xf0000000"
+	if is_stream == 0x50000000
+		# sound.fat can look for streamed files through an external bin file.
+		# streamed file usually start with 5 as the number, for example
+		# if an bao file has an ID of 50000001, then it's a streamed file
+		# and said file is stored in stream.bin, and only sound.fat
+		# knows where that file is and how much that file weighs in size.
+		# for example, sound.fat tell us that that bao with an ID like that
+		# is (assuming said file is stored in stream.bin) 
+		# at file offset 0 and file size is 848320.
+		math sb_exists = 0
+		if multilingual = 0
+			string stream_bin_name p "stream.bin"
+		elif multilingual = 1
+			string stream_bin_name p "%s/stream.bin" lang_name
+		endif
+		open FDSE stream_bin_name 2 EXISTS
+		if EXISTS == 1
+			math sb_exists = 1
+		endif
+		if sb_exists = 1
+			log bao_name bao_offset bao_size 2
+		endif
+	else
+		log bao_name bao_offset bao_size 1
+	endif
+endfunction
