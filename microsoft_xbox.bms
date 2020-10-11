@@ -260,7 +260,12 @@ startfunction parse_mxm
 				endif
 				math name_number + 1
 			next
-			log file_name file_offset file_size
+			if is_compressed == 1
+				comtype xmemlzx
+				clog file_name file_offset file_size file_size
+			else
+				log file_name file_offset file_size
+			endif
 		endif
 		if i3 == last_entry || final_directory_entries = 0 || i3 == final_directory_entries
 			if directory_number != 0
