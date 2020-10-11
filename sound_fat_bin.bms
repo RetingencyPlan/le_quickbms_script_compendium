@@ -89,7 +89,7 @@ startfunction get_bao_info
 		# knows where that file is and how much that file weighs in size.
 		# for example, sound.fat tell us that that bao with an ID like that
 		# is (assuming said file is stored in stream.bin) 
-		# at file offset 0 and file size is 848320.
+		# at file offset 0 with 848320 as its file size.
 		math sb_exists = 0
 		if multilingual = 0
 			string stream_bin_name p "stream.bin"
