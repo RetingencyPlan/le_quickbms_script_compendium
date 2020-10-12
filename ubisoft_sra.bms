@@ -1,0 +1,85 @@
+# Ubisoft - *.SRA
+# ---
+# Naruto: Rise of a Ninja
+# Naruto: The Broken Bond
+
+comtype zlib
+
+get sra_id long
+if sra_id != 0x41535246 # "ASRF"(LE)
+	cleanexit
+endif
+get sra_version long
+get sra_info_off_01 long
+get sra_entries_01 long
+get sra_info_off_02 long
+get sra_entries_02 long
+
+goto sra_info_off_01
+for i = 0 < sra_entries_01
+	get e1_1 long
+	putarray 0 i e1_1
+	get e1_2 long
+	putarray 1 i e1_2
+	get e1_3 long
+	putarray 2 i e1_3
+	get e1_4 long
+	putarray 3 i e1_4
+	get e1_5 long
+	putarray 4 i e1_5
+	get e1_6 long
+	putarray 5 i e1_6
+	get e1_7 long
+	putarray 6 i e1_7
+next i
+
+goto sra_info_off_02
+for i = 0 < sra_entries_02
+	get e2_1 long
+	putarray 7 i e2_1
+	get e2_2 long
+	putarray 8 i e2_2
+	if e2_1 == 0
+		get e2_3 long
+		putarray 9 i e2_3
+		get e2_4 long
+		putarray 10 i e2_4
+	elif e2_1 == 1
+		get e2_3 long
+		putarray 9 i e2_3
+		getdstring e2_4 0x80
+		putarray 10 i e2_4
+	endif
+next i
+
+for i = 0 < sra_entries_01
+	set file_name string ""
+	getarray entry_type 0 i
+	getarray entry_id 1 i
+	getarray entry_hash 2 i
+	getarray entry_offset 3 i
+	getarray compressed_file_size 4 i
+	getarray original_file_size 5 i
+	getarray entry_07 6 i
+	for i2 = 0 < sra_entries_02
+		getarray matching_hash 9 i2
+		if entry_id == matching_hash
+			getarray sub_type_01 7 i2
+			getarray sub_type_02 8 i2
+			if sub_type_01 == 0
+				getarray eh1 9 i2
+				getarray eh2 10 i2
+				string file_name p "[%u]%08x_%08x[%08x]." entry_offset eh1 eh2 entry_hash
+			else
+				getarray eh1 9 i2
+				getarray file_name 10 i2
+			endif
+			break
+		endif
+	next i2
+	if original_file_size == 0
+		log file_name entry_offset compressed_file_size
+	else
+		clog file_name entry_offset compressed_file_size original_file_size
+	endif
+next i
