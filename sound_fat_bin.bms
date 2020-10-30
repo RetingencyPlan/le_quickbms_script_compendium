@@ -26,11 +26,12 @@ if fat_name != "sound.fat"
 	cleanexit
 endif
 
+endian big
 get fat_sign long
 if fat_sign == 0x0000005a
-	endian little
-elif fat_sign == 0x5a000000
 	endian big
+elif fat_sign == 0x0000bc42
+	endian little
 else
 	cleanexit
 endif
@@ -82,14 +83,6 @@ startfunction get_bao_info
 	endif
 	xmath is_stream "bao_id & 0xf0000000"
 	if is_stream == 0x50000000
-		# sound.fat can look for streamed files through an external bin file.
-		# streamed file usually start with 5 as the number, for example
-		# if an bao file has an ID of 50000001, then it's a streamed file
-		# and said file is stored in stream.bin, and only sound.fat
-		# knows where that file is and how much that file weighs in size.
-		# for example, sound.fat tell us that that bao with an ID like that
-		# is (assuming said file is stored in stream.bin) 
-		# at file offset 0 with 848320 as its file size.
 		math sb_exists = 0
 		if multilingual = 0
 			string stream_bin_name p "stream.bin"
