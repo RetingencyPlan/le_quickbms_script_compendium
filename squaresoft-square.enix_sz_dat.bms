@@ -2,7 +2,7 @@
 # ---
 # Driving Emotion Type-S (PS2) - .sz/.dat(OP_MOVIE), .dat
 # Gekikukan Pro Yakyuu AT THE END OF THE CENTURY 1999 (PS2) - .sz/dat
-# Bouncer/The Bouncer (PS2) - .sz/dat
+# The Bouncer (PS2) - .sz/dat
 # Final Fantasy X (PS2) - .sz/.dat
 # PlayOnline Viewer (PS2) - .sz/.dat
 # Kingdom Hearts (PS2) - .dat
@@ -510,8 +510,6 @@ startfunction handle_sound_type
 	math is_ac3 = 0
 	math dual_codec = 0
 	math is_dpcm = 0
-	math is_bilingual = 0
-	math uses_ffx_compression = 0
 	math audio_frame_offset = backup_chunk_offset
 	if sound_type = 1
 		if audio_frame_size == 0x1c30
@@ -526,7 +524,6 @@ startfunction handle_sound_type
 			math is_pcm16 = 1
 		elif audio_frame_size == 0x7800
 			math is_pcm16 = 1
-			math is_bilingual = 1
 		elif audio_frame_size == 0x8000
 			math is_pcm16 = 1
 			math is_ac3 = 1
@@ -542,53 +539,27 @@ startfunction handle_sound_type
 		elif audio_frame_size == 0xa220
 			math is_pcm16 = 1
 			math is_ac3 = 1
-			math is_bilingual = 1
 			math dual_codec = 1
 		elif audio_frame_size == 0xc800
 			math is_pcm16 = 1
-			math is_bilingual = 1
 		elif audio_frame_size == 0x10800
 			math is_pcm16 = 1
 			math is_ac3 = 1
-			math is_bilingual = 1
 			math dual_codec = 1
 		else
 			if audio_frame_size != 0
 				print " unknown sound frame configuration "
+				cleanexit
 			endif
 		endif
-		if is_bilingual = 0
-			if dual_codec = 1
-				callfunction handle_dual_codec 1
-			else
-				callfunction set_file_names_for_audio 1
-				append
-				log chunk_name audio_frame_offset audio_frame_size MEMORY_FILE
-				append
-			endif
-		elif is_bilingual = 1
-			if dual_codec = 1
-				callfunction handle_dual_codec 1
-			else
-				xmath audio_frame_size_for_language_track "audio_frame_size / 2"
-				for j = 0 < 2
-					xmath ln "j + 1"
-					callfunction set_file_names_for_audio 1
-					if is_ac3 = 1
-						log MEMORY_FILE2 audio_frame_offset audio_frame_size_for_language_track MEMORY_FILE
-						math ac3_frame_size = audio_frame_size_for_language_track
-						callfunction find_blank_areas_within_ac3_frame 1
-						append
-						log chunk_name 0 ac3_frame_size MEMORY_FILE2
-						append
-					else
-						append
-						log chunk_name audio_frame_offset audio_frame_size_for_language_track MEMORY_FILE
-						append
-					endif
-					math audio_frame_offset + audio_frame_size_for_language_track
-				next j
-			endif
+		print " non-compressed sound data "
+		if dual_codec = 1
+			callfunction handle_dual_codec 1
+		else
+			callfunction set_file_names_for_audio 1
+			append
+			log chunk_name audio_frame_offset audio_frame_size MEMORY_FILE
+			append
 		endif
 		log MEMORY_FILE2 0 0
 	elif sound_type = 2
@@ -647,51 +618,39 @@ startfunction handle_dual_codec
 		math pcm16_frame_size = 0x6400
 		math ac3_frame_size = 0x2300
 	elif audio_frame_size == 0xa220
-		math pcm16_frame_size = 0x3c00
-		math ac3_frame_size = 0x1510
+		math pcm16_frame_size = 0x7800
+		math ac3_frame_size = 0x2a20
 	elif audio_frame_size == 0x10800
-		math pcm16_frame_size = 0x6400
-		math ac3_frame_size = 0x2000
-	endif
-	if is_bilingual = 1
-		math lm = 2
-	else
-		math lm = 1
+		math pcm16_frame_size = 0xc800
+		math ac3_frame_size = 0x4000
 	endif
 	for cdc = 0 < 2
-		for lj = 0 < lm
-			xmath ln "lj + 1"
-			if cdc = 0
-				math is_pcm16 = 1
-				math is_ac3 = 0
-			elif cdc = 1
-				math is_pcm16 = 0
-				math is_ac3 = 1
-			endif
-			callfunction set_file_names_for_audio 1
-			if cdc = 0
-				append
-				log chunk_name audio_frame_offset pcm16_frame_size MEMORY_FILE
-				append
-				math audio_frame_offset + pcm16_frame_size
-			elif cdc = 1
-				log MEMORY_FILE2 audio_frame_offset ac3_frame_size MEMORY_FILE
-				math audio_frame_offset + ac3_frame_size
-				callfunction find_blank_areas_within_ac3_frame 1
-				append
-				log chunk_name 0 ac3_frame_size MEMORY_FILE2
-				append
-			endif
-		next lj
+		if cdc = 0
+			math is_pcm16 = 1
+			math is_ac3 = 0
+		elif cdc = 1
+			math is_pcm16 = 0
+			math is_ac3 = 1
+		endif
+		callfunction set_file_names_for_audio 1
+		if cdc = 0
+			append
+			log chunk_name audio_frame_offset pcm16_frame_size MEMORY_FILE
+			append
+			math audio_frame_offset + pcm16_frame_size
+		elif cdc = 1
+			log MEMORY_FILE2 audio_frame_offset ac3_frame_size MEMORY_FILE
+			math audio_frame_offset + ac3_frame_size
+			callfunction find_blank_areas_within_ac3_frame 1
+			append
+			log chunk_name 0 ac3_frame_size MEMORY_FILE2
+			append
+		endif
 	next cdc
 endfunction
 
 startfunction set_file_names_for_audio
-	if is_bilingual = 1
-		string chunk_pre p "[%02d]%s." ln NAME
-	else
-		string chunk_pre p "%s." NAME
-	endif
+	string chunk_pre p "%s." NAME
 	if is_ima = 1
 		string chunk_name p "%sima" chunk_pre
 	endif
