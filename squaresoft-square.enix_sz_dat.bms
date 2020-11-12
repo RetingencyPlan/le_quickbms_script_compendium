@@ -509,7 +509,6 @@ startfunction handle_sound_type
 	math is_pcm16 = 0
 	math is_ac3 = 0
 	math dual_codec = 0
-	math is_dpcm = 0
 	math audio_frame_offset = backup_chunk_offset
 	if sound_type = 1
 		if audio_frame_size == 0x1c30
