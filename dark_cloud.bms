@@ -37,7 +37,7 @@ elif EXT == "HD2"
 	next
 elif EXT == "HD3"
 	open FDDE "DAT" 1
-	for offset = 0
+	for=
 		get name_offset long
 		get file_size long
 		get hd3_03 long
