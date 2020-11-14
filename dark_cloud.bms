@@ -148,6 +148,6 @@ elif EXT == "HD6"
 		endif
 	next i
 elif EXT == "DAT"
-	print " this script can only work with .hed/.hd2/.hd3/.hd4/.hd6 files at this point. "
+	print " this script can only work with .hed/.hd2/.hd3/.hd4/.hd5/.hd6 files at this point. "
 	cleanexit
 endif
