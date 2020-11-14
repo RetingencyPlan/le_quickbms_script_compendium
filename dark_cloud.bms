@@ -69,6 +69,25 @@ elif EXT == "HD4"
 		math file_offset << 11
 		log file_name file_offset file_size 1
 	next
+elif EXT == "HD5"
+	# spotted in Dragon Quest VIII Premium Eizou Disc (SLPM-62490)
+	open FDDE "DAT" 1
+	for
+		get name_offset long
+		get file_02 long
+		get file_size_01 long
+		get file_size_02 long
+		get file_offset long
+		if file_size_01 == 0 && file_size_02 == 0
+			break
+		endif
+		savepos temp_01
+		goto name_offset
+		get file_name string
+		goto temp_01
+		math file_offset << 11
+		log file_name file_offset file_size_01 1
+	next
 elif EXT == "HD6"
 	open FDDE "DAT" 1
 	idstring "HD6\0"
