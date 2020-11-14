@@ -1,5 +1,5 @@
-# Level5 games / Dark Cloud (2018-07-09)
-# original script by aluigi, modified by AnonBaiter
+# Level5 games / Dark Cloud (November 13, 2020)
+# original script by aluigi, modified by RetingencyPlan
 
 get EXT extension
 
@@ -102,7 +102,8 @@ elif EXT == "HD6"
 		getvarchr byte_07 hd6_file_info 6 byte
 		getvarchr byte_08 hd6_file_info 7 byte
 		set file_name string ""
-		xmath name_offset "(((byte_03 & 0x03) << 16) | (byte_02 << 8) | byte_01) + keyword_fetch_offset"
+		xmath name_offset "(((byte_03 & 0x03) << 16) | (byte_02 << 8) | byte_01) & 0x3ffff"
+		math name_offset + keyword_fetch_offset
 		savepos temp_01
 		goto name_offset
 		do
@@ -112,13 +113,22 @@ elif EXT == "HD6"
 			string file_name + keyword
 		while keyword_number != 0
 		goto temp_01
-		xmath file_offset "((byte_05 << 14) | (byte_04 << 6) | (byte_03 >> 2)) << 11"
-		xmath file_size "((byte_08 << 16) | (byte_07 << 8) | byte_06) << 4"
+		xmath file_offset "((byte_05 << 14) | (byte_04 << 6) | (byte_03 >> 2)) & 0x3fffff"
+		math file_offset << 11
+		xmath file_size "((byte_08 << 16) | (byte_07 << 8) | byte_06) & 0xffffff"
+		math file_size << 4
 		if file_size != 0
 			log file_name file_offset file_size 1
+			/*
+			# uncomment this and wipe out the previous line
+			# if quickbms doesn't generate proper file names upon file extraction,
+			# or if quickbms demands you to write out a new name
+			# after finding out what it thinks is the wrong name or whatever.
+			log "" file_offset file_size 1
+			*/
 		endif
 	next i
 elif EXT == "DAT"
-	print " this script can only work with .hed/.hd2/.hd3/.hd4/.hd6 files at this point. \n the .hd5 file isn't covered however so if you can confirm that file's existence for me let me know. "
+	print " this script can only work with .hed/.hd2/.hd3/.hd4/.hd6 files at this point. "
 	cleanexit
 endif
