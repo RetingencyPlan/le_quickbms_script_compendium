@@ -1,0 +1,32 @@
+# Cing - *.[FIF+FPK]
+# ---
+# Garasu no Bara/Glass Rose (PS2)
+
+get ext extension
+if ext == "FIF"
+	math fif1 = 0
+	math fpk1 = 1
+elif ext == "FPK"
+	math fif1 = 1
+	math fpk1 = 0
+else
+	cleanexit
+endif
+
+callfunction extract 1
+
+startfunction extract
+	open FDDE "FIF" fif1
+	open FDDE "FPK" fpk1
+	get fif_size asize fif1
+	xmath files "fif_size / 0x18"
+	for i = 0 < files
+		getdstring file_name 16 fif1
+		get file_offset long fif1
+		math file_offset << 11
+		get file_size long fif1
+		if file_name != ""
+			log file_name file_offset file_size fpk1
+		endif
+	next i
+endfunction
