@@ -1,0 +1,143 @@
+# Atlantis III - The New World (PS2) - big.[dir+dat]
+
+get ext extension
+if ext == "dir"
+	open FDDE "dat" 1
+	math filenum = 0
+	math datnum = 1
+elif ext == "dat"
+	open FDDE "dir" 1
+	math filenum = 1
+	math datnum = 0
+else
+	cleanexit
+endif
+
+math dir_pos = 0
+math dir_num = 0
+math processed_pos = 0
+math processed_dir = 0
+math processed_dat = 0
+math files = 0
+for j = 0 < 8
+	putarray 0 j 0
+	putarray 1 j 0
+	putarray 2 j 0
+	putarray 3 j 0
+	putarray 4 j ""
+next j
+get dat_size asize datnum
+goto dir_pos filenum
+get dir_pos long filenum
+callfunction handle_dir 1
+
+startfunction handle_dir
+	for
+		goto dir_pos filenum
+		get next_dir_pos long filenum
+		get upcoming_dir_pos long filenum
+		get file_info_pos long filenum
+		get dir_name_pos long filenum
+		savepos processed_pos filenum
+		if processed_dir = 1
+			if next_dir_pos != 0
+				math dir_pos == next_dir_pos
+				math processed_dir = 0
+				callfunction handle_dir 1
+			else
+				xmath prev_dir "dir_num - 1"
+				if prev_dir > 0
+					getarray upcoming_dir_pos 0 prev_dir
+					getarray next_dir_pos 1 prev_dir
+					getarray file_info_pos 2 prev_dir
+					getarray dir_pos 3 prev_dir
+					getarray dir_name 4 prev_dir
+					math dir_num = prev_dir
+					math processed_dir = 1
+					callfunction handle_dir 1
+				endif
+			endif
+		endif
+		savepos temp_01 filenum
+		goto dir_name_pos filenum
+		get dir_name string filenum
+		goto temp_01 filenum
+		putarray 0 dir_num upcoming_dir_pos
+		putarray 1 dir_num next_dir_pos
+		putarray 2 dir_num file_info_pos
+		putarray 3 dir_num dir_pos
+		putarray 4 dir_num dir_name
+		if file_info_pos != 0
+			math file_info_curr_pos = file_info_pos
+			for
+				math keywords = 2
+				goto file_info_curr_pos filenum
+				get next_file_info_pos long filenum
+				get file_name_pos long filenum
+				savepos temp_02 filenum
+				goto file_name_pos filenum
+				get file_name string filenum
+				goto temp_02 filenum
+				get file_offset long filenum
+				get file_size long filenum
+				math keywords + dir_num
+				xmath last_kw "keywords - 1"
+				set full_name string ""
+				for x = 0 < keywords
+					if x != last_kw
+						getarray kw1 4 x
+					else
+						set kw1 string file_name
+					endif
+					string full_name + kw1
+					if x != last_kw
+						string full_name + "\"
+					endif
+				next x
+				log full_name file_offset file_size datnum
+				math files + 1
+				xmath sz1 "file_size / 0x800"
+				xmath sz2 "file_size % 0x800"
+				if sz2 != 0
+					math sz1 + 1
+				endif
+				math sz1 * 0x800
+				math processed_dat += sz1
+				savepos processed_pos filenum
+				if next_file_info_pos != 0
+					math file_info_curr_pos == next_file_info_pos
+				else
+					break
+				endif
+			next
+		endif
+		if processed_dat == dat_size
+			# what this is is a hacky method that forces the script to quit
+			# once it's done going through all the files listed in this big.dir file
+			# it was either that or have the script process big.dir forever
+			cleanexit
+		endif
+		if upcoming_dir_pos != 0
+			math dir_num + 1
+			math dir_pos == upcoming_dir_pos
+			callfunction handle_dir 1
+		else
+			if next_dir_pos != 0
+				math dir_pos == next_dir_pos
+				callfunction handle_dir 1
+			else
+				xmath prev_dir "dir_num - 1"
+				if prev_dir > 0
+					getarray upcoming_dir_pos 0 prev_dir
+					getarray next_dir_pos 1 prev_dir
+					getarray file_info_pos 2 prev_dir
+					getarray dir_pos 3 prev_dir
+					getarray dir_name 4 prev_dir
+					math dir_num = prev_dir
+					math processed_dir = 1
+					callfunction handle_dir 1
+				endif
+			endif
+		endif
+	next
+endfunction
