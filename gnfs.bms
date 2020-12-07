@@ -1,0 +1,40 @@
+get flags long
+xmath sign "flags & 0xff"
+if sign != 0xd0
+	cleanexit
+endif
+xmath entries "(flags >> 8) & 0xff"
+callfunction get_string 1
+set fn1 string asset_string
+for i = 0 < entries
+	get file_info long
+	xmath remaining_bytes "file_info & 0x7ff"
+	putarray 0 i remaining_bytes
+	xmath file_offset "file_info & 0xfffff800"
+	putarray 1 i file_offset
+next i
+get full_size long
+getarray info_off2 1 0
+goto info_off2
+getdstring dummy 0x20
+xmath files "entries - 1"
+math a1 = 1
+for i = 0 < files
+	getarray fo1 1 a1
+	callfunction get_string 1
+	set fn2 string asset_string
+	getdstring file_info 0x20
+	getvarchr fs1 file_info 0 long
+	getvarchr fs2 file_info 8 long
+	if fs1 == fs2
+		log fn2 fo1 fs1
+	else
+		print " file is compressed "
+	endif
+	math a1 + 1
+next i
+
+startfunction get_string
+	get asset_string string
+	padding 4
+endfunction
