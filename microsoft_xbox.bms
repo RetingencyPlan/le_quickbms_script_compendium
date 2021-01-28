@@ -261,8 +261,44 @@ startfunction parse_mxm
 				math name_number + 1
 			next
 			if is_compressed == 1
+				math lzx_type = 0
 				comtype xmemlzx
-				clog file_name file_offset file_size file_size
+				savepos temp_91
+				goto file_offset
+				endian big
+				get lzx_sign long
+				get lzx_02 long
+				get lzx_crc long
+				get lzx_flags long
+				if lzx_sign == 0x0ff512ed
+					math lzx_type = 1
+				elif lzx_sign == 0xed12f50f
+					xmath rvs "((lzx_flags & 0xff) << 24) | (((lzx_flags >> 8) & 0xff) << 16) | (((lzx_flags >> 16) & 0xff) << 8) | ((lzx_flags >> 24) & 0xff)"
+					math lzx_flags == rvs
+					math lzx_type = 1
+				endif
+				endian little
+				goto temp_91
+				if lzx_type == 1
+					math bits_per_size = 0
+					xmath window_size "1 << ((lzx_flags & 0xf) + 0xf)"
+					xmath compressed_block_size "0x8000 << ((lzx_flags >> 4) & 3)"
+					xmath segments "(lzx_flags >> 6) & 0xffff"
+					xmath bps_number "(lzx_flags >> 0x16) & 3"
+					xmath lzx_unk_05 "(lzx_flags >> 0x18) & 0xff"
+					if bps_number == 0
+						math bits_per_size = 20
+					elif bps_number == 1
+						math bits_per_size = 32
+					endif
+					if segments == 0
+						math file_offset + 16
+						math file_size - 16
+						log file_name file_offset file_size
+					else
+						clog file_name file_offset file_size file_size
+					endif
+				endif
 			else
 				log file_name file_offset file_size
 			endif
