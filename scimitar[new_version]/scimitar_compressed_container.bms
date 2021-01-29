@@ -1,0 +1,232 @@
+
+startfunction read_container
+	math memory_num = 0
+	math container_read = 0
+	math endian_props = 0
+	for p = 0 < container_passes
+		log TEMPORARY_FILE 0 0
+		callfunction parse_container 1
+		/*
+		if p = 0
+			string tn2 p "%08x.1" file_id
+		elif p = 1
+			string tn2 p "%08x.2" file_id
+		endif
+		open "." TEMPORARY_FILE 1
+		log tn2 0 full_data_alloc 1
+		*/
+		string tn1 p "%s" file_name
+		open "." TEMPORARY_FILE 1
+		goto 0 TEMPORARY_FILE 1
+		math filenum = 1
+		if p = 0
+			callfunction parse_toc 1
+		elif p = 1
+			callfunction parse_data 1
+		endif
+	next p
+endfunction
+
+startfunction parse_container
+	math endian_props = 0
+	goto container_offset
+	math chunk_offset == container_offset
+	get container_id1 long
+	get container_id2 long
+	math container_offset + 8
+	if container_id1 == 0x99fa0410 && container_id2 == 0x33aafb57
+		endian big
+		math container_read = 1
+		math endian_props = 1
+	elif container_id1 == 0x57fbaa33 && container_id2 == 0x1004fa99
+		endian little
+		math container_read = 1
+	else
+		break
+	endif
+	get container_version short
+	if container_version != 1
+		break
+	endif
+	math container_offset + 2
+	get compression_algorithm byte
+	math container_offset + 1
+	if container_version == 1
+		if compression_algorithm == 1
+			comtype lzo1x
+		elif compression_algorithm == 2
+			comtype lzo2a
+		elif compression_algorithm == 3
+			comtype xmemlzx
+		endif
+	endif
+	get minimum_chunk_size short
+	get maximum_chunk_size short
+	math container_offset + 4
+	if container_version == 1
+		get chunks short
+		math container_offset + 2
+		xmath chunk_info_alloc "chunks * 4"
+		putvarchr MEMORY_FILE11 chunk_info_alloc 0
+		log MEMORY_FILE11 0 0
+		goto 0 MEMORY_FILE11
+	endif
+	math compressed_data_alloc = 0
+	math full_data_alloc = 0
+	for chk = 0 < chunks
+		if container_version == 1
+			get decompressed_chunk_size short
+			put decompressed_chunk_size short MEMORY_FILE11
+			get compressed_chunk_size short
+			put compressed_chunk_size short MEMORY_FILE11
+			math full_data_alloc + decompressed_chunk_size
+			math compressed_data_alloc + compressed_chunk_size
+			math container_offset + 4
+		endif
+	next chk
+	math chunk_offset == container_offset
+	goto 0 MEMORY_FILE11
+	for chk = 0 < chunks
+		if container_version == 1
+			get decompressed_chunk_size short MEMORY_FILE11
+			get compressed_chunk_size short MEMORY_FILE11
+			goto chunk_offset
+			get chunk_checksum long
+			math chunk_offset + 4
+			math container_offset + 4
+		endif
+		if compressed_chunk_size == decompressed_chunk_size
+			append
+			log TEMPORARY_FILE chunk_offset decompressed_chunk_size
+			append
+		else
+			if compression_algorithm == 3
+				# workaround for quickbms' implementation of xmemlzx
+				math to1 == chunk_offset
+				goto to1
+				get is_ff byte
+				if is_ff != 0xff 
+					log MEMORY_FILE12 0 0
+					goto 0 MEMORY_FILE12
+					put 0xff byte MEMORY_FILE12
+					put decompressed_chunk_size short MEMORY_FILE12
+					goto to1
+					append
+					log MEMORY_FILE12 to1 compressed_chunk_size
+					append
+					get m12_size asize MEMORY_FILE12
+					append
+					clog TEMPORARY_FILE 0 m12_size decompressed_chunk_size MEMORY_FILE12
+					append
+				else
+					append
+					clog TEMPORARY_FILE chunk_offset compressed_chunk_size decompressed_chunk_size
+					append
+				endif
+			else
+				append
+				clog TEMPORARY_FILE chunk_offset compressed_chunk_size decompressed_chunk_size
+				append
+			endif
+		endif
+		math chunk_offset + compressed_chunk_size
+		math container_offset + compressed_chunk_size
+	next chk
+	if endian_props = 1
+		endian little
+	endif
+endfunction
+
+startfunction parse_toc
+	if endian_props = 0
+		endian little
+	elif endian_props = 1
+		endian big
+	endif
+	get entries short filenum
+	math entry_offset = 0
+	for m1 = 0 < entries
+		get entry_hash long filenum
+		putarray 21 m1 entry_hash
+		get entry_size long filenum
+		putarray 22 m1 entry_size
+		putarray 23 m1 entry_offset
+		math entry_offset + entry_size
+	next m1
+	if endian_props = 1
+		endian little
+	endif
+endfunction
+
+startfunction parse_data
+	if endian_props = 0
+		endian little
+	elif endian_props = 1
+		endian big
+	endif
+	for m1 = 0 < entries
+		getarray entry_hash 21 m1
+		getarray entry_size 22 m1
+		getarray entry_offset 23 m1
+		goto entry_offset filenum
+		get entry_type long filenum
+		get entry_mem_size long filenum
+		get entry_name_size long filenum
+		getdstring entry_name_string entry_name_size filenum
+		get entry_name_delimiter byte filenum
+		savepos entry_mem_offset filenum
+		log MEMORY_FILE entry_mem_offset entry_mem_size filenum
+		goto 0 MEMORY_FILE
+		get entry_hash long MEMORY_FILE
+		get entry_type long MEMORY_FILE
+		string en1 p "%s/%s" tn1 entry_name_string
+		if entry_type == 0xd8295dcb
+			putarray 24 0 "None"
+			putarray 24 1 "English"
+			putarray 24 2 "French"
+			putarray 24 3 "Spanish"
+			putarray 24 4 "German"
+			putarray 24 5 "Italian"
+			putarray 24 6 "Japanese"
+			putarray 24 7 "Korean"
+			putarray 24 8 "Russian"
+			putarray 24 9 "Czech"
+			putarray 24 10 "Polish"
+			get bao_id long MEMORY_FILE
+			string bao_name p "%08x.bao" bao_id
+			get external_bao_entries long MEMORY_FILE
+			for ebe1 = 0 < external_bao_entries
+				get ext_bao_hash long MEMORY_FILE
+			next ebe1
+			get bao_03 short MEMORY_FILE
+			xmath bao_mode "bao_03 & 0xff"
+			if bao_mode == 0
+				get language_number long MEMORY_FILE
+				getarray language_name 24 language_number
+				get bao_size long MEMORY_FILE
+				savepos bao_offset MEMORY_FILE
+				string bn2 p "%s/%s/%s" tn1 language_name entry_name_string
+				log bn2 bao_offset bao_size MEMORY_FILE
+			elif bao_mode == 1
+				get language_entries long MEMORY_FILE
+				for ble = 0 < language_entries
+					get language_number long MEMORY_FILE
+					getarray language_name 24 language_number
+					get bao_size long MEMORY_FILE
+					savepos bao_offset MEMORY_FILE
+					string bn2 p "%s/%s/%s" tn1 language_name entry_name_string
+					log bn2 bao_offset bao_size MEMORY_FILE
+					math bao_offset + bao_size
+					goto bao_offset MEMORY_FILE
+				next ble
+			else
+				print " unknown BAO handling "
+			endif
+		else
+			log en1 0 entry_mem_size MEMORY_FILE
+		endif
+	next m1
+	if endian_props = 1
+		endian little
+	endif
+endfunction
