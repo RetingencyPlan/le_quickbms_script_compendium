@@ -1,0 +1,102 @@
+# Ubisoft - *.forge
+# ---
+# Assassin's Creed (PlayStation 3, Xbox 360)
+# Assassin's Creed: Director's Cut (Windows)
+
+include "scimitar_compressed_container.bms"
+
+idstring "scimitar\0"
+get scm_ver long
+if scm_ver != 0x19
+	cleanexit
+endif
+get init_info_off longlong
+get scm_03 long
+get scm_04 long
+
+goto init_info_off
+get files long
+get tabs longlong
+math tabs + 1
+get info_02 long
+get info_03 longlong
+get max_files long
+get info_04 long
+get info_05 longlong
+goto info_05
+get info_06 long
+get info_07 long
+get info_08 longlong
+get info_09 longlong
+get info_10 long
+get info_11 long
+get info_12 longlong
+get info_13 longlong
+goto info_08
+for i2 = 0 < max_files
+	get file_01 longlong
+	putarray 0 i2 file_01
+	get file_02 long
+	putarray 1 i2 file_02
+	get file_03 long
+	putarray 2 i2 file_03
+next i2
+goto info_12
+for i3 = 0 < max_files
+	get file_04 long
+	putarray 3 i3 file_04
+	get file_05 long
+	putarray 4 i3 file_05
+	get file_06 long
+	putarray 5 i3 file_06
+	get file_07 longlong
+	putarray 6 i3 file_07
+	get file_08 longlong
+	putarray 7 i3 file_08
+	get file_09 long
+	putarray 8 i3 file_09
+	get file_10 long
+	putarray 9 i3 file_10
+	get file_11 long
+	putarray 10 i3 file_11
+	get file_12 time
+	putarray 11 i3 file_12
+	getdstring file_13 0x80
+	putarray 12 i3 file_13
+	get file_13 longlong
+	putarray 13 i3 file_13
+	get file_14 longlong
+	putarray 14 i3 file_14
+next i3
+
+for i4 = 0 < max_files
+	getarray file_offset 0 i4
+	goto file_offset
+	getdstring supposed_file_name 0x187
+	get md_01 long
+	get md_02 long
+	get md_03 long
+	get md_04 long
+	getdstring md_05 12
+	get md_06 long
+	get md_07 long
+	get md_08 long
+	get md_09 long
+	get md_10 long
+	get md_11 byte
+	savepos physical_file_offset
+	putarray 27 i4 physical_file_offset
+next i4
+
+for i5 = 0 < files
+	getarray physical_file_offset 27 i5
+	getarray file_id 1 i5
+	getarray file_size 2 i5
+	getarray file_name 12 i5
+	math container_offset == physical_file_offset
+	math container_passes = 2
+	callfunction read_container 1
+	if container_read != 1
+		log file_name physical_file_offset file_size
+	endif
+next i5
