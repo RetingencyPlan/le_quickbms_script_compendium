@@ -85,6 +85,7 @@ startfunction parse_container
 		endif
 	next chk
 	math chunk_offset == container_offset
+	xmath last_chunk "chunks - 1"
 	goto 0 MEMORY_FILE11
 	for chk = 0 < chunks
 		if container_version == 1
@@ -102,25 +103,21 @@ startfunction parse_container
 		else
 			if compression_algorithm == 3
 				# workaround for quickbms' implementation of xmemlzx
-				math to1 == chunk_offset
-				goto to1
-				get is_ff byte
-				if is_ff != 0xff 
+				if chk == last_chunk
+					append
+					clog TEMPORARY_FILE chunk_offset compressed_chunk_size decompressed_chunk_size
+					append
+				else
 					log MEMORY_FILE12 0 0
 					goto 0 MEMORY_FILE12
 					put 0xff byte MEMORY_FILE12
 					put decompressed_chunk_size short MEMORY_FILE12
-					goto to1
 					append
-					log MEMORY_FILE12 to1 compressed_chunk_size
+					log MEMORY_FILE12 chunk_offset compressed_chunk_size
 					append
 					get m12_size asize MEMORY_FILE12
 					append
 					clog TEMPORARY_FILE 0 m12_size decompressed_chunk_size MEMORY_FILE12
-					append
-				else
-					append
-					clog TEMPORARY_FILE chunk_offset compressed_chunk_size decompressed_chunk_size
 					append
 				endif
 			else
