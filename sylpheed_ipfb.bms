@@ -1,0 +1,41 @@
+# PROJECT SYLPHEED (Xbox 360) - *.pak+.p##
+
+get ext extension
+if ext == "pak"
+	get pak_name basename
+	endian big
+	get is_ipfb long
+	if is_ipfb != 0x49504642 # IPFB
+		cleanexit
+	endif
+	get files long
+	get block_size long
+	get max_p_size long
+	for i = 0 < files
+		get hardcoded_name_hash long
+		putarray 0 i hardcoded_name_hash
+		get file_offset long
+		putarray 1 i file_offset
+		get file_size long
+		putarray 2 i file_size
+	next i
+	for i = 0 < files
+		getarray hardcoded_name_hash 0 i
+		getarray file_offset 1 i
+		getarray file_size 2 i
+		math target == file_offset
+		callfunction fetch_p_file 1
+		xmath local_file_offset "file_offset % max_p_size"
+		putarray 3 i local_file_offset
+		string temp_name p "%u." hardcoded_name_hash
+		log temp_name local_file_offset file_size 1
+	next i
+else
+	cleanexit
+endif
+
+startfunction fetch_p_file
+	xmath p_num "target / max_p_size"
+	string p_file p "p%02d" p_num
+	open FDDE p_file 1
+endfunction
