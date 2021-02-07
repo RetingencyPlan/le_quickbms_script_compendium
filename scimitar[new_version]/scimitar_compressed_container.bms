@@ -178,17 +178,37 @@ startfunction parse_data
 		get entry_type long MEMORY_FILE
 		string en1 p "%s/%s" tn1 entry_name_string
 		if entry_type == 0xd8295dcb
-			putarray 24 0 "None"
-			putarray 24 1 "English"
-			putarray 24 2 "French"
-			putarray 24 3 "Spanish"
-			putarray 24 4 "German"
-			putarray 24 5 "Italian"
-			putarray 24 6 "Japanese"
-			putarray 24 7 "Korean"
-			putarray 24 8 "Russian"
-			putarray 24 9 "Czech"
-			putarray 24 10 "Polish"
+			if scm_ver == 0x19
+				putarray 24 0 "None"
+				putarray 24 1 "English"
+				putarray 24 2 "French"
+				putarray 24 3 "Spanish"
+				putarray 24 4 "German"
+				putarray 24 5 "Italian"
+				putarray 24 6 "Japanese"
+				putarray 24 7 "Korean"
+				putarray 24 8 "Russian"
+				putarray 24 9 "Czech"
+				putarray 24 10 "Polish"
+			elif scm_ver == 0x1a
+				putarray 24 0 "None"
+				putarray 24 1 "English"
+				putarray 24 2 "French"
+				putarray 24 3 "Spanish"
+				putarray 24 4 "Polish"
+				putarray 24 5 "German"
+				putarray 24 6 "Chinese"
+				putarray 24 7 "Hungarian"
+				putarray 24 8 "Italian"
+				putarray 24 9 "Japanese"
+				putarray 24 10 "Czech"
+				putarray 24 11 "Korean"
+				putarray 24 12 "Russian"
+				putarray 24 13 "Dutch"
+				putarray 24 14 "Danish"
+				putarray 24 15 "Norwegian"
+				putarray 24 16 "Swedish"
+			endif
 			get bao_id long MEMORY_FILE
 			string bao_name p "%08x.bao" bao_id
 			get external_bao_entries long MEMORY_FILE
