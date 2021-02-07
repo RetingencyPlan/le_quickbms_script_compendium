@@ -62,6 +62,8 @@ for i = 0 < 2
 		get first_directory_sector long
 		get first_directory_size long
 		get timecode time64
+		string tc_report p " master date for this disc is %s " timecode
+		print " %tc_report% "
 		getdstring dummy_data 0x7c8
 	elif i = 1
 		if xbox_type == 0
