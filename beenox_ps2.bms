@@ -1,0 +1,23 @@
+# Bee Movie Game (PS2)
+
+get exe_name filename
+
+if exe_name == "SLUS_216.22"
+	callfunction parse_beenox_beemoviegame_data 1
+elif exe_name == "SLES_550.16"
+	callfunction parse_beenox_beemoviegame_data 1
+endif
+
+startfunction parse_beenox_beemoviegame_data
+	goto 0x14c300
+	get files long
+	goto 0x140820
+	for i = 0 < files
+		getdstring file_name 0x100
+		getdstring archive_name 0x100
+		get file_offset long
+		get file_size long
+		open FDSE archive_name 1
+		log file_name file_offset file_size 1
+	next i
+endfunction
