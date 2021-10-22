@@ -104,6 +104,13 @@ elif EXT == "HD5"
 	open FDDE "DAT" 1
 	for
 		get name_offset long
+		savepos temp_01
+		goto name_offset
+		get file_name string
+		goto temp_01
+		if file_name == ""
+		    break
+		endif
 		get file_02 long # always 0
 		if file_02 != 0
 		    break
@@ -111,17 +118,10 @@ elif EXT == "HD5"
 		get file_size_01 long
 		get file_size_02 long
 		get file_offset long
+		math file_offset << 11
 		if file_size_01 != file_size_02
 		    break
 		endif
-		if file_size_01 == 0 && file_size_02 == 0
-			break
-		endif
-		savepos temp_01
-		goto name_offset
-		get file_name string
-		goto temp_01
-		math file_offset << 11
 		log file_name file_offset file_size_01 1
 	next
 elif EXT == "HD6"
@@ -133,13 +133,22 @@ elif EXT == "HD6"
 	get keyword_info_size long
 	get total_keywords long
 	get hd6_04 long
+	if hd6_04 != 0
+	    break
+	endif
 	get keyword_fetch_offset long
 	get keyword_fetch_size long
 	get hd6_07 long
-	get hd6_08 long
+	if hd6_07 != 0
+	    break
+	endif
+	get block_size_per_file long
 	get files long
 	get file_info_offset long
 	get hd6_11 long
+	if hd6_11 != 0
+	    break
+	endif
 	get hd6_size long
 	goto keyword_info_offset
 	for a = 0 < total_keywords
@@ -148,34 +157,27 @@ elif EXT == "HD6"
 	next a
 	goto file_info_offset
 	for i = 0 < files
-		getdstring hd6_file_info 8
-		getvarchr byte_01 hd6_file_info 0 byte
-		getvarchr byte_02 hd6_file_info 1 byte
-		getvarchr byte_03 hd6_file_info 2 byte
-		getvarchr byte_04 hd6_file_info 3 byte
-		getvarchr byte_05 hd6_file_info 4 byte
-		getvarchr byte_06 hd6_file_info 5 byte
-		getvarchr byte_07 hd6_file_info 6 byte
-		getvarchr byte_08 hd6_file_info 7 byte
-		set file_name string ""
-		xmath name_offset "(((byte_03 & 0x03) << 16) | (byte_02 << 8) | byte_01) & 0x3ffff"
-		math name_offset + keyword_fetch_offset
-		savepos temp_01
-		goto name_offset
+	    # HD6 structure has a bug in which the last actual file gets repeated twice.
+	    #getdstring hd6_file_info 8
+	    getbits name_offset 18
+	    math name_offset + keyword_fetch_offset
+	    savepos temp_01
+	    goto name_offset
+	    set file_name string ""
 		do
-			savepos temp_02
 			get keyword_number variable4
 			getarray keyword 0 keyword_number
 			string file_name + keyword
 		while keyword_number != 0
-		goto temp_01
-		xmath file_offset "((byte_05 << 14) | (byte_04 << 6) | (byte_03 >> 2)) & 0x3fffff"
-		math file_offset << 11
-		xmath file_size "((byte_08 << 16) | (byte_07 << 8) | byte_06) & 0xffffff"
-		math file_size << 4
-		if file_size != 0
-			log file_name file_offset file_size 1
-		endif
+	    goto temp_01
+	    if file_name == ""
+	        break
+	    endif
+	    getbits file_offset 22
+	    math file_offset << 11
+	    getbits file_size 24
+	    math file_size * block_size_per_file
+	    log file_name file_offset file_size 1
 	next i
 else
 	print " this script can only work with .hed/.hd2/.hd3/.hd4/.hd5/.hd6 files at this point. "
