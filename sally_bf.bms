@@ -657,7 +657,7 @@ startfunction read_abe_header
 	get abe_02 long
 	if abe_01 == 5
 	    print " so, as this is a bfz file you're extracting you may need to wait a long time before you get your files. "
-	    print " yes the whole thing needs to be compressed into memory. hang in tight! "
+	    print " yes the whole thing needs to be uploaded into memory. hang in tight! "
 	    if abe_02 != 5
 	        cleanexit
 	    endif
