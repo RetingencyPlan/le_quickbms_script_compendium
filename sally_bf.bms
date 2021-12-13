@@ -24,6 +24,8 @@
 # NCIS
 # --- "ABE" ---
 # Rabbids Go Home
+# Rabbids Channel
+# Rabbids Lab
 # Red Steel 2
 # Just Dance 2
 # Raving Rabbids: Travel in Time
@@ -56,43 +58,8 @@ get bf_ext extension
 # Peter Jackson's King Kong: The Official Game of the Movie (Xbox) - .### (starts with 1 is limited to 999)
 
 math split_bf = 0
-math is_r4_pc = 0
-if bf_ext == "bf0"
-    math split_bf = 1
-    math tentative_offset = 0
-    math total_bf_parts = 0
-    for i = 0 < 10
-        string name p "%s.bf%d" bf_name i
-        open FDSE name 1 EXISTS
-        if EXISTS == 1
-            get size asize 1
-            putarray 128 i name
-            putarray 129 i size
-            putarray 130 i tentative_offset
-            math tentative_offset + size
-            math total_bf_parts + 1
-        endif
-    next i
-    putarray 130 total_bf_parts tentative_offset
-elif bf_ext == "001"
-    math split_bf = 1
-    math tentative_offset = 0
-    math total_bf_parts = 0
-    for i = 1 < 999
-        xmath i2 "i + 1"
-        string name p "%s.%03d" bf_name i2
-        open FDSE name 1 EXISTS
-        if EXISTS == 1
-            get size asize 1
-            putarray 128 i name
-            putarray 129 i size
-            putarray 130 i tentative_offset
-            math tentative_offset + size
-            math total_bf_parts + 1
-        endif
-    next i
-    putarray 130 total_bf_parts tentative_offset
-endif
+# needed for the above, the format used for these two games never accounted for single bf files that were split into several parts each.
+# it was meant to be streamed from the game disk if a console version of the game was played on a console.
 
 endian little
 
@@ -119,6 +86,17 @@ if bf64_sign == 0x42463634 # "BF64"
 endif
 
 startfunction read_bigfile_header
+    # this is what we'll call the "big bug" format, used in any Ubisoft game that used the Jade engine.
+    # "big bug" was basically a listing of files which only had an ID with them
+    # and an pointer for each of them should they ever be accessed at any point in the game.
+    # basically, a zip file with all of its intricacies and nuances gutted out in service of the engine.
+    # all the files were divided into "tabs", mostly one but sometimes two, three or more than that if
+    # the total number of files ended up being too big or something.
+    # imagine 28000 files divided into 4 groups. this is how an Jade engine game handled things through this format.
+    # however, for every tab it had "big bug" had unused "file" and "folder" fields
+    # and this script takes advantage of them every chance it gets regardless of tabs.
+    # this feature was borrowed from hcs' bfbs 0.0 program and it was expanded within this script
+    # in significant ways to accomodate some Jade games that had the "big bug" format modified one way or another.
     get bigfile_parameters long file_number
     # (todo) explore "bigfile_parameters" much further.
     # every .bf file that i've observed behaves like this:
@@ -425,12 +403,164 @@ startfunction final_step
             getarray file_16 15 i1
             string full_file_name + full_folder_name
             string full_file_name + file_name
-            goto file_offset
-            get compressed_file_size long
-            get original_file_size long
-            xmath real_file_offset "file_offset + 0x20"
+            if encapsulated_size != file_size
+                # this is the "engine header" you're seeing now.
+                # this header accounts for how compressed this file is, what kind of file is it, etc.
+                # sometimes a file can contain nothing but references to another file,
+                # sometimes an entire file can be compressed, sometimes it may not be compressed at all.
+                # but we can check one value against another. this makes it easy for us
+                # to extract some info from the file to make informed decisions on how to extract a file.
+                goto file_offset
+                get compressed_file_size long
+                get original_file_size long
+                get reference_data_size long
+                get file_type long
+                get shortcut_info1 long
+                get shortcut_info2 long
+                get shortcut_info3 long
+                get shortcut_info4 long
+                # and the above four vars are dedicated values for the shortcut files.
+                # here is an example of how they work.
+                # for bik files, shortcut_info2 is now 0xe3fe22 and shortcut_info3 is now 0xdc
+                # for sns files, shortcut_info1 = 0x2349c8c, shortcut_info2 = 0x131e354 and shortcut_info4 = 0x2349650
+                savepos real_file_offset
+                if file_type == 0
+                    # "under the hood" files, can range from cfg to wol depending on the file
+                    # it comes in two "partitions". first one contains actual data,
+                    # while the second one contains references to other files within the bigfile.
+                    # the "see also" section of an wikipedia article in binary form.
+                    # we'll extract both as separate files of their own.
+                    math wol_chunk_offset = real_file_offset
+                    for j1 = 0 < 2
+                        if j1 = 0
+                            if compressed_file_size != original_file_size
+                                clog full_file_name wol_chunk_offset compressed_file_size original_file_size 0
+                                math wol_chunk_offset + compressed_file_size
+                            else
+                                log full_file_name wol_chunk_offset original_file_size 0
+                                math wol_chunk_offset + original_file_size
+                            endif
+                        elif j1 = 1
+                            string full_file_name + ".references"
+                            if reference_data_size != 0
+                                log full_file_name wol_chunk_offset reference_data_size 0
+                            endif
+                            math wol_chunk_offset + reference_data_size
+                        endif
+                    next j1
+                elif file_type == 2
+                    log full_file_name real_file_offset original_file_size
+                elif file_type == 3
+                    print " this is an shortcut. here's what it's trying to tell us. "
+                    get ref_file string
+                    print " this shortcurt redirects to %ref_file% "
+                    get ref_key string
+                    if ref_key == "$hd$"
+                        get ref_file_id long
+                        xmath ref_fid1 "((ref_file_id & 0xff) << 24) | (((ref_file_id >> 8) & 0xff) << 16) | (((ref_file_id >> 16) & 0xff) << 8) | ((ref_file_id >> 24) & 0xff)"
+                        # ref_fid1 is needed because its file ID is in another ABE bigfile and we want to find it.
+                        #string rfi_print p " and here is its ID - 0x%08x vs 0x%08x " ref_file_id ref_fid1
+                        string rfi_print p " and here is its ID - 0x%08x " ref_fid1
+                        print " %rfi_print% "
+                    endif
+                    print " and now we extract it into its own file. "
+                    log full_file_name real_file_offset compressed_file_size
+                elif file_type == 4
+                    if abe_version == 4
+                        # assumed (Rabbids Go Home [Wii])
+                        math base_chunk_size = 0x40000
+                    elif abe_version == 5
+                        # assumed (Just Dance 4 [WiiU])
+                        math base_chunk_size = 0x3fffc
+                    endif
+                    math chunk_num1 = 4
+                    # must... decompress... the whole file... in blocks...
+                    putvarchr MEMORY_FILE original_file_size 0
+                    log MEMORY_FILE 0 0
+                    if abe_version == 5
+                        get chunk_signature long
+                        if chunk_signature != 1
+                            print " the compressed file has a chunk signature not set to 1. "
+                            cleanexit
+                        endif
+                        math chunk_num1 + 4
+                    endif
+                    get chunks long
+                    xmath compressed_chunk_offset "real_file_offset + (chunks * 4) + chunk_num1"
+                    for j1 = 0 < chunks
+                        get compressed_chunk_size long
+                        putarray 20 j1 compressed_chunk_size
+                        putarray 21 j1 compressed_chunk_offset
+                        if compressed_chunk_size != 0
+                            math compressed_chunk_offset + compressed_chunk_size
+                        else
+                            math compressed_chunk_offset + base_chunk_size
+                        endif
+                    next j1
+                    append
+                    for j1 = 0 < chunks
+                        getarray compressed_chunk_size 20 j1
+                        getarray compressed_chunk_offset 21 j1
+                        if compressed_chunk_size != 0
+                            clog MEMORY_FILE compressed_chunk_offset compressed_chunk_size base_chunk_size 0
+                        else
+                            log MEMORY_FILE compressed_chunk_offset base_chunk_size 0
+                        endif
+                    next j1
+                    append
+                    log full_file_name 0 original_file_size MEMORY_FILE
+                else
+                    string uftw1 p " unknown file type number %u! " file_type
+                    string uftw2 p " file name is %s! " full_file_name
+                    print " %uftw1% \n %uftw2% "
+                endif
+            else
+                # however, if two values match each other, that's it. no nice things for you.
+                # here, the engine header is already deeply ingrained into the file itself,
+                # meaning it can be more than a bit annoying to get some more extra info
+                # into how the file looks like, and if said file is compressed or not.
+                # not helping matters is that there can be video files with an header of their own
+                # without even needing an engine header to prove it.
+                log full_file_name file_offset file_size
+            endif
         next i1
     else
+        if bf_ext == "bf0"
+            math split_bf = 1
+            math tentative_offset = 0
+            math total_bf_parts = 0
+            for i = 0 < 10
+                string name p "%s.bf%d" bf_name i
+                open FDSE name 1 EXISTS
+                if EXISTS == 1
+                    get size asize 1
+                    putarray 128 i name
+                    putarray 129 i size
+                    putarray 130 i tentative_offset
+                    math tentative_offset + size
+                    math total_bf_parts + 1
+                endif
+            next i
+            putarray 130 total_bf_parts tentative_offset
+        elif bf_ext == "001"
+            math split_bf = 1
+            math tentative_offset = 0
+            math total_bf_parts = 0
+            for i = 1 < 999
+                xmath i2 "i + 1"
+                string name p "%s.%03d" bf_name i2
+                open FDSE name 1 EXISTS
+                if EXISTS == 1
+                    get size asize 1
+                    putarray 128 i name
+                    putarray 129 i size
+                    putarray 130 i tentative_offset
+                    math tentative_offset + size
+                    math total_bf_parts + 1
+                endif
+            next i
+            putarray 130 total_bf_parts tentative_offset
+        endif
         for i2 = 0 < folders2
             set full_folder_name string ""
             getarray folder_01 32 i2
@@ -653,9 +783,15 @@ startfunction fetch_entry_name
 endfunction
 
 startfunction read_abe_header
-    get abe_01 long
+    # THIS is the "ABE" format, somewhat of a successor to the "big bug" format if you will.
+    math is_bfz = 0
+    # necessary for ZombiU bfz files.
+    # if this number isn't 4 under any circumstances the script will treat it as a normal bf file.
+    # this is necessary because 
+    comtype lzo1x
+    get abe_version long
     get abe_02 long
-    if abe_01 == 4
+    if abe_version == 4
         get file_tabs long
         get folder_tabs long
         get abe_05 long
@@ -678,179 +814,221 @@ startfunction read_abe_header
         math tabs = folder_tabs
         callfunction read_abe_tab 1
         callfunction final_step 1
-    elif abe_01 == 5
-        print " so, as this is a bfz file you're extracting you may need to wait a long time before you get your files. "
-        print " yes the whole thing needs to be uploaded into memory. hang in tight! "
-        if abe_02 != 5
-            cleanexit
+    elif abe_version == 5
+        # ZombiU hijacks the entire format so we must check against various values here.
+        if abe_02 == 5
+            math is_bfz = 1
         endif
-        comtype lzo1x
-        get abe_03 long
-        get max_block_size long
-        get abe_05 long
-        get file_tabs long
-        get folder_tabs long
-        get chunk_tabs long
-        get abe_09 long
-        get file_tab_offset longlong
-        get folder_tab_offset longlong
-        get chunk_tab_offset longlong
-        get total_entries long
-        get entry1 long
-        get entry2 long
-        get total_files long
-        get total_folders long
-        get total_chunks long
-        get abe_dummy1 longlong
-        get abe_dummy2 longlong
-        get abe_dummy3 long
-        goto file_tab_offset
-        math file = 0
-        for i = 0 < file_tabs
-            get files long
-            get dummy1 long
-            get next_file_tab longlong
-            savepos temp1
-            for j = 0 < files
-                xmath temp2 "temp1 + (j * 24)"
-                xmath temp3 "temp1 + (files * 24) + (j * 96)"
-                goto temp2
-                get file2 longlong
-                get file3 longlong
-                get file4 long
-                get file5 long
-                goto temp3
-                getdstring file6 0x40
-                get file7 longlong
-                get file8 longlong
-                get file9 longlong
-                get file10 long
-                get file11 long
-                if file4 != 0xfafafafa
-                    putarray 11 file file2
-                    putarray 12 file file3
-                    putarray 13 file file4
-                    putarray 14 file file5
-                    putarray 15 file file6
-                    putarray 16 file file7
-                    putarray 17 file file8
-                    putarray 18 file file9
-                    putarray 19 file file10
-                    putarray 20 file file11
-                    math file + 1
-                endif
-            next j
-            if next_file_tab != 64bit_max_number
-                goto next_file_tab
+        if is_bfz = 1
+            get abe_03 long # always 0xa
+            if abe_03 == 0xa
+                math is_bfz = 2
             endif
-        next i
-        goto folder_tab_offset
-        math folder = 0
-        for i = 0 < folder_tabs
-            get folders long
-            get dummy1 long
-            get next_folder_tab longlong
-            for j = 0 < folders
-                getdstring folder1 0x40
-                get folder2 long
-                get folder3 long
-                get folder4 long
-                get folder5 long
-                get folder6 long
-                if folder2 != 0xfdfdfdfd
-                    putarray 21 folder folder1
-                    putarray 22 folder folder2
-                    putarray 23 folder folder3
-                    putarray 24 folder folder4
-                    putarray 25 folder folder5
-                    putarray 26 folder folder6
-                    math folder + 1
-                endif
-            next j
-            if next_folder_tab != 64bit_max_number
-                goto next_folder_tab
+        endif
+        if is_bfz = 2
+            get max_block_size long # can vary from 0x20000 to 0x80000
+            if max_block_size == 0x20000 && max_block_size == 0x80000
+                math is_bfz = 3
             endif
-        next i
-        goto chunk_tab_offset
-        log MEMORY_FILE 0 0
-        for i = 0 < chunk_tabs
-            get chunks long
-            get dummy1 long
-            get next_chunk_tab longlong
-            for j = 0 < chunks
-                get decompressed_chunk_offset longlong
-                get compressed_chunk_offset longlong
-                get chunk3 longlong
-                get decompressed_chunk_size long
-                get compressed_chunk_size long
-                if compressed_chunk_size != 0xf8f8f8f8
-                    xmath putvarchr_offset "decompressed_chunk_offset - 1"
-                    putvarchr MEMORY_FILE putvarchr_offset 0
-                    goto decompressed_chunk_offset MEMORY_FILE
-                    append
-                    clog MEMORY_FILE compressed_chunk_offset compressed_chunk_size decompressed_chunk_size
-                    append
-                endif
-            next j
-            if next_chunk_tab != 64bit_max_number
-                goto next_chunk_tab
+        endif
+        if is_bfz = 3
+            get abe_05 long # 0x10 means base data, 0x1000 patch data that can replace other bfz files if needed.
+            if abe_05 == 0x10 && abe_05 == 0x1000
+                math is_bfz = 4
             endif
-        next i
-
-        print " we're just about done. you'll get your files in no time! "
-
-        for i2 = 0 < total_folders
-            set full_folder_name string ""
-            getarray folder_name 21 i2
-            getarray previous_folder 22 i2
-            getarray next_folder 23 i2
-            getarray neighbor_folder 24 i2
-            getarray flagship_title 25 i2
-            getarray folder_06 26 i2
-            math keyword_number = 0
-            putarray 64 keyword_number folder_name
-            math keyword_number + 1
-            if previous_folder != 32bit_max_number
-                for
-                    getarray folder_name 32 previous_folder
-                    getarray previous_folder 33 previous_folder
-                    putarray 64 keyword_number folder_name
-                    math keyword_number + 1
-                    if previous_folder == 32bit_max_number
-                        break
+        endif
+        if is_bfz = 4
+            # just what the hell happened here!?
+            print " so, as this is a bfz file you're extracting you may need to wait a long time before you get your files. "
+            print " yes the whole thing needs to be uploaded into memory. hang in tight! "
+            get file_tabs long
+            get folder_tabs long
+            get chunk_tabs long
+            get abe_09 long
+            get file_tab_offset longlong
+            get folder_tab_offset longlong
+            get chunk_tab_offset longlong
+            get total_entries long
+            get entry1 long
+            get entry2 long
+            get total_files long
+            get total_folders long
+            get total_chunks long
+            get abe_dummy1 longlong
+            get abe_dummy2 longlong
+            get abe_dummy3 long
+            goto file_tab_offset
+            math file = 0
+            for i = 0 < file_tabs
+                get files long
+                get dummy1 long
+                get next_file_tab longlong
+                savepos temp1
+                for j = 0 < files
+                    xmath temp2 "temp1 + (j * 24)"
+                    xmath temp3 "temp1 + (files * 24) + (j * 96)"
+                    goto temp2
+                    get file2 longlong
+                    get file3 longlong
+                    get file4 long
+                    get file5 long
+                    goto temp3
+                    getdstring file6 0x40
+                    get file7 longlong
+                    get file8 longlong
+                    get file9 longlong
+                    get file10 long
+                    get file11 long
+                    if file4 != 0xfafafafa
+                        putarray 11 file file2
+                        putarray 12 file file3
+                        putarray 13 file file4
+                        putarray 14 file file5
+                        putarray 15 file file6
+                        putarray 16 file file7
+                        putarray 17 file file8
+                        putarray 18 file file9
+                        putarray 19 file file10
+                        putarray 20 file file11
+                        math file + 1
                     endif
-                next
-            endif
-            math max_names_for_this_folder = keyword_number
-            xmath name_startoff "keyword_number - 1"
-            for nk = 0 < max_names_for_this_folder
-                getarray folder_name 64 name_startoff
-                math name_startoff - 1
-                string full_folder_name + folder_name
-                string full_folder_name + "/"
-            next nk
-            putarray 27 i2 full_folder_name
-        next i2
+                next j
+                if next_file_tab != 64bit_max_number
+                    goto next_file_tab
+                endif
+            next i
+            goto folder_tab_offset
+            math folder = 0
+            for i = 0 < folder_tabs
+                get folders long
+                get dummy1 long
+                get next_folder_tab longlong
+                for j = 0 < folders
+                    getdstring folder1 0x40
+                    get folder2 long
+                    get folder3 long
+                    get folder4 long
+                    get folder5 long
+                    get folder6 long
+                    if folder2 != 0xfdfdfdfd
+                        putarray 21 folder folder1
+                        putarray 22 folder folder2
+                        putarray 23 folder folder3
+                        putarray 24 folder folder4
+                        putarray 25 folder folder5
+                        putarray 26 folder folder6
+                        math folder + 1
+                    endif
+                next j
+                if next_folder_tab != 64bit_max_number
+                    goto next_folder_tab
+                endif
+            next i
+            goto chunk_tab_offset
+            log MEMORY_FILE 0 0
+            for i = 0 < chunk_tabs
+                get chunks long
+                get dummy1 long
+                get next_chunk_tab longlong
+                for j = 0 < chunks
+                    get decompressed_chunk_offset longlong
+                    get compressed_chunk_offset longlong
+                    get chunk3 longlong
+                    get decompressed_chunk_size long
+                    get compressed_chunk_size long
+                    if compressed_chunk_size != 0xf8f8f8f8
+                        xmath putvarchr_offset "decompressed_chunk_offset - 1"
+                        putvarchr MEMORY_FILE putvarchr_offset 0
+                        goto decompressed_chunk_offset MEMORY_FILE
+                        append
+                        clog MEMORY_FILE compressed_chunk_offset compressed_chunk_size decompressed_chunk_size
+                        append
+                    endif
+                next j
+                if next_chunk_tab != 64bit_max_number
+                    goto next_chunk_tab
+                endif
+            next i
 
-        for i1 = 0 < total_files
-            set full_file_name string ""
-            getarray file_offset 11 i1
-            getarray encapsulated_file_size 12 i1
-            getarray file_03 13 i1
-            getarray file_04 14 i1
-            getarray file_name 15 i1
-            getarray file_size 16 i1
-            getarray folder_number 17 i1
-            getarray full_folder_name 27 folder_number
-            getarray file_08 18 i1
-            getarray previous_file 19 i1
-            getarray file_10 20 i1
-            string full_file_name + full_folder_name
-            string full_file_name + file_name
-            log full_file_name file_offset file_size MEMORY_FILE
-        next i1
+            print " we're just about done. you'll get your files in no time! "
+
+            for i2 = 0 < total_folders
+                set full_folder_name string ""
+                getarray folder_name 21 i2
+                getarray previous_folder 22 i2
+                getarray next_folder 23 i2
+                getarray neighbor_folder 24 i2
+                getarray flagship_title 25 i2
+                getarray folder_06 26 i2
+                math keyword_number = 0
+                putarray 64 keyword_number folder_name
+                math keyword_number + 1
+                if previous_folder != 32bit_max_number
+                    for
+                        getarray folder_name 32 previous_folder
+                        getarray previous_folder 33 previous_folder
+                        putarray 64 keyword_number folder_name
+                        math keyword_number + 1
+                        if previous_folder == 32bit_max_number
+                            break
+                        endif
+                    next
+                endif
+                math max_names_for_this_folder = keyword_number
+                xmath name_startoff "keyword_number - 1"
+                for nk = 0 < max_names_for_this_folder
+                    getarray folder_name 64 name_startoff
+                    math name_startoff - 1
+                    string full_folder_name + folder_name
+                    string full_folder_name + "/"
+                next nk
+                putarray 27 i2 full_folder_name
+            next i2
+
+            for i1 = 0 < total_files
+                set full_file_name string ""
+                getarray file_offset 11 i1
+                getarray encapsulated_file_size 12 i1
+                getarray file_03 13 i1
+                getarray file_04 14 i1
+                getarray file_name 15 i1
+                getarray file_size 16 i1
+                getarray folder_number 17 i1
+                getarray full_folder_name 27 folder_number
+                getarray file_08 18 i1
+                getarray previous_file 19 i1
+                getarray file_10 20 i1
+                string full_file_name + full_folder_name
+                string full_file_name + file_name
+                log full_file_name file_offset file_size MEMORY_FILE
+            next i1
+        else
+            goto 12
+            get file_tabs long
+            get folder_tabs long
+            get abe_05 long
+            get file_tab_offset long
+            get abe_07 long
+            get folder_tab_offset long
+            get files1 long
+            get folders1 long
+            get files2 long
+            get folders2 long
+            get abe_13 long
+            get abe_14 long
+            get abe_15 long
+            goto file_tab_offset
+            math tab_type = 1
+            math tabs = file_tabs
+            callfunction read_abe_tab 1
+            goto folder_tab_offset
+            math tab_type = 2
+            math tabs = folder_tabs
+            callfunction read_abe_tab 1
+            callfunction final_step 1
+        endif
     else
-        string abe_unk_message p " unknown abe version %u " abe_01
+        string abe_unk_message p " unknown abe version %u " abe_version
         print " %abe_unk_message% "
         cleanexit
     endif
@@ -945,6 +1123,7 @@ startfunction parse_folder_tabs_02
 endfunction
 
 startfunction read_bf64_header
+    # this is the "BF64" format.
     # "BF64" files doesn't seem to use any tricks in regards to header encryption
     # same case with "ABE" files
     get indices long
@@ -1057,3 +1236,6 @@ startfunction read_bf64_header
         log full_name file_offset file_size
     next i
 endfunction
+
+# codenames for games listed at the beginning of the script (WIP)
+# sally, sally_clean, sally_POLISH, PRINCE, RGH, RGH_defrag, WD, WD2, RS2, JD4, SPREE
