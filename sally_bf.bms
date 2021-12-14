@@ -57,7 +57,6 @@ get bf_ext extension
 # Beyond Good and Evil (Xbox) - .bf# (starts with 0 and is limited to 9)
 # Peter Jackson's King Kong: The Official Game of the Movie (Xbox) - .### (starts with 1 is limited to 999)
 
-
 endian little
 
 goto 0
@@ -1151,7 +1150,7 @@ startfunction parse_compressed_files_from_abe_bigfile
             # all the info needed to decompress an compressed chunk of data is in said data itself.
             # as for the rest, well... same thing otherwise.
             # oh and the decompression algorithm actually changed this time.
-            # it's a variant of lzma that gives better compression results than lzo1x
+            # it's a variant of lzma that has much better compression than lzo1x
             # but there's no way to tell when looking through an entire bigfile.
             if compressed_chunk_size != 0
                 goto compressed_chunk_offset
