@@ -57,31 +57,37 @@ get bf_ext extension
 # Beyond Good and Evil (Xbox) - .bf# (starts with 0 and is limited to 9)
 # Peter Jackson's King Kong: The Official Game of the Movie (Xbox) - .### (starts with 1 is limited to 999)
 
-math split_bf = 0
-# needed for the above, the format used for these two games never accounted for single bf files that were split into several parts each.
-# it was meant to be streamed from the game disk if a console version of the game was played on a console.
 
 endian little
 
+goto 0
 get bf_01 long
 xmath bf_01_01 "(bf_01 & 0xff) << 24 | (bf_01 & 0xff00) << 8 | (bf_01 & 0xff0000) >> 8 | (bf_01 & 0xff000000) >> 24"
-xmath bigfile_sign "(bf_01_01 >> 8) & 0xffffff"
+xmath bf_sign1 "(bf_01_01 >> 8) & 0xffffff"
+xmath bf_sign2 "bf_01_01 & 0xffffffff"
 math entry_info_size = 0
-if bigfile_sign == 0x424947 # "BIG"
+if bf_sign1 == 0x424947 # "BIG"
     log MEMORY_FILE 4 4 # put initial header data into memory
     math file_number = -1
     math entry_info_size_01 = 0x54
     math entry_info_size_02 = 0x54
+    math split_bf = 0
     callfunction read_bigfile_header 1
-elif bigfile_sign == 0x425547 # "BUG"
+elif bf_sign1 == 0x425547 # "BUG"
     math entry_info_size_01 = 0x54
     math entry_info_size_02 = 0x54
+    math split_bf = 0
     callfunction decrypt_bigfile_header 1
-elif bigfile_sign == 0x414245 # "ABE"
-    callfunction read_abe_header 1
 endif
-xmath bf64_sign "bf_01_01 & 0xffffffff"
-if bf64_sign == 0x42463634 # "BF64"
+# split_bf is needed for the above, the format used for these two games never accounted for single bf files that were split into several parts each.
+# it was meant to be streamed from the game disk if a console version of the game was played on a console.
+
+putarray 0 0 bf_sign2
+if bf_sign2 == 0x41424500 # "ABE\0"
+    callfunction read_abe_header 1
+elif bf_sign2 == 0x41424542 # "ABEB"
+    callfunction read_abe_header 1
+elif bf_sign2 == 0x42463634 # "BF64"
     callfunction read_bf64_header 1
 endif
 
@@ -106,7 +112,7 @@ startfunction read_bigfile_header
     # so bigfile_parameters might already be out of the question just as much
     # as the "bigfile" signature that is handled above.
     # perhaps there is a way to handle the decryption process
-    # more efficiently without relying on bigfile_sign...
+    # more efficiently without relying on bf_sign1...
     if bigfile_parameters == 0x24
         math entry_info_size_01 + 4
     elif bigfile_parameters == 0x2a
@@ -120,7 +126,7 @@ startfunction read_bigfile_header
         math entry_info_size_01 + 0x40
         math entry_info_size_02 + 0x40
     endif
-    if bigfile_sign != 0x425547 # "BUG"
+    if bf_sign1 != 0x425547 # "BUG"
         if bigfile_parameters == 0x2c
             log MEMORY_FILE 8 0x50
             math file_index_header_offset = 0x58
@@ -164,10 +170,10 @@ startfunction read_bigfile_header
         get bigfile_unknown_11 long file_number
     endif
     math file_index_header_size = 0x18
-    if bigfile_sign == 0x424947 # "BIG"
+    if bf_sign1 == 0x424947 # "BIG"
         log MEMORY_FILE2 file_index_header_offset file_index_header_size
         math file_number = -2
-    elif bigfile_sign == 0x425547 # "BUG"
+    elif bf_sign1 == 0x425547 # "BUG"
         goto file_index_header_offset
         putvarchr MEMORY_FILE2 file_index_header_size 0
         xmath passes "file_index_header_size / 4"
@@ -191,7 +197,7 @@ startfunction read_bigfile_header
         xmath folder_tab_offset "file_tab_offset + (skips1 * entry_info_size_01)"
         xmath folder_tab_size "folders2 * entry_info_size_02"
         math current_file = 0 # needed for Rayman Raving Rabbids (Windows, official Ubisoft release)
-        if bigfile_sign == 0x424947 # "BIG"
+        if bf_sign1 == 0x424947 # "BIG"
             log MEMORY_FILE3 file_listing_offset file_listing_size
             math file_number = -3
             callfunction initialize_file_listing 1
@@ -201,7 +207,7 @@ startfunction read_bigfile_header
             log MEMORY_FILE5 folder_tab_offset folder_tab_size
             math file_number = -5
             callfunction parse_folder_tabs 1
-        elif bigfile_sign == 0x425547 # "BUG"
+        elif bf_sign1 == 0x425547 # "BUG"
             math broken_file_tab = 0
             goto file_listing_offset
             putvarchr MEMORY_FILE3 file_listing_size 0
@@ -270,11 +276,11 @@ startfunction read_bigfile_header
             # split bf files (not seen)
             log MEMORY_FILE2 0 0
             math next_listing_offset - file_index_header_size
-            if bigfile_sign == 0x424947 # "BIG"
+            if bf_sign1 == 0x424947 # "BIG"
                 log MEMORY_FILE2 next_listing_offset file_index_header_size
                 math file_number = -2
                 goto 0 file_number
-            elif bigfile_sign == 0x425547 # "BUG"
+            elif bf_sign1 == 0x425547 # "BUG"
                 goto next_listing_offset
                 putvarchr MEMORY_FILE2 file_index_header_size 0
                 xmath passes "file_index_header_size / 4"
@@ -348,7 +354,7 @@ startfunction parse_folder_tabs
 endfunction
 
 startfunction final_step
-    if bigfile_sign == 0x414245 # "ABE"
+    if bf_sign1 == 0x414245 # "ABE"
         for i2 = 0 < folders2
             set full_folder_name string ""
             getarray folder_name 32 i2
@@ -425,6 +431,7 @@ startfunction final_step
                 # for sns files, shortcut_info1 = 0x2349c8c, shortcut_info2 = 0x131e354 and shortcut_info4 = 0x2349650
                 savepos real_file_offset
                 if file_type == 0
+                    comtype lzo1x
                     # "under the hood" files, can range from cfg to wol depending on the file
                     # it comes in two "partitions". first one contains actual data,
                     # while the second one contains references to other files within the bigfile.
@@ -449,7 +456,12 @@ startfunction final_step
                         endif
                     next j1
                 elif file_type == 2
-                    log full_file_name real_file_offset original_file_size
+                    if original_file_size != 0
+                        log full_file_name real_file_offset original_file_size
+                    endif
+                    if reference_data_size != 0
+                        log full_file_name real_file_offset reference_data_size
+                    endif
                 elif file_type == 3
                     print " this is an shortcut. here's what it's trying to tell us. "
                     get ref_file string
@@ -466,49 +478,11 @@ startfunction final_step
                     print " and now we extract it into its own file. "
                     log full_file_name real_file_offset compressed_file_size
                 elif file_type == 4
-                    if abe_version == 4
-                        # assumed (Rabbids Go Home [Wii])
-                        math base_chunk_size = 0x40000
-                    elif abe_version == 5
-                        # assumed (Just Dance 4 [WiiU])
-                        math base_chunk_size = 0x3fffc
-                    endif
-                    math chunk_num1 = 4
-                    # must... decompress... the whole file... in blocks...
-                    putvarchr MEMORY_FILE original_file_size 0
-                    log MEMORY_FILE 0 0
-                    if abe_version == 5
-                        get chunk_signature long
-                        if chunk_signature != 1
-                            print " the compressed file has a chunk signature not set to 1. "
-                            cleanexit
-                        endif
-                        math chunk_num1 + 4
-                    endif
-                    get chunks long
-                    xmath compressed_chunk_offset "real_file_offset + (chunks * 4) + chunk_num1"
-                    for j1 = 0 < chunks
-                        get compressed_chunk_size long
-                        putarray 20 j1 compressed_chunk_size
-                        putarray 21 j1 compressed_chunk_offset
-                        if compressed_chunk_size != 0
-                            math compressed_chunk_offset + compressed_chunk_size
-                        else
-                            math compressed_chunk_offset + base_chunk_size
-                        endif
-                    next j1
-                    append
-                    for j1 = 0 < chunks
-                        getarray compressed_chunk_size 20 j1
-                        getarray compressed_chunk_offset 21 j1
-                        if compressed_chunk_size != 0
-                            clog MEMORY_FILE compressed_chunk_offset compressed_chunk_size base_chunk_size 0
-                        else
-                            log MEMORY_FILE compressed_chunk_offset base_chunk_size 0
-                        endif
-                    next j1
-                    append
-                    log full_file_name 0 original_file_size MEMORY_FILE
+                    comtype lzo1x
+                    callfunction parse_compressed_files_from_abe_bigfile 1
+                elif file_type == 6
+                    comtype lzma86dechead
+                    callfunction parse_compressed_files_from_abe_bigfile 1
                 else
                     string uftw1 p " unknown file type number %u! " file_type
                     string uftw2 p " file name is %s! " full_file_name
@@ -787,34 +761,18 @@ startfunction read_abe_header
     math is_bfz = 0
     # necessary for ZombiU bfz files.
     # if this number isn't 4 under any circumstances the script will treat it as a normal bf file.
-    # this is necessary because 
-    comtype lzo1x
+    comtype copy
     get abe_version long
+    if abe_version = 4
+    elif abe_version = 5
+    elif abe_version = 6
+    else
+        string abe_unk_message p " unknown abe version %u " abe_version
+        print " %abe_unk_message% "
+        cleanexit
+    endif
     get abe_02 long
-    if abe_version == 4
-        get file_tabs long
-        get folder_tabs long
-        get abe_05 long
-        get file_tab_offset long
-        get abe_07 long
-        get folder_tab_offset long
-        get files1 long
-        get folders1 long
-        get files2 long
-        get folders2 long
-        get abe_13 long
-        get abe_14 long
-        get abe_15 long
-        goto file_tab_offset
-        math tab_type = 1
-        math tabs = file_tabs
-        callfunction read_abe_tab 1
-        goto folder_tab_offset
-        math tab_type = 2
-        math tabs = folder_tabs
-        callfunction read_abe_tab 1
-        callfunction final_step 1
-    elif abe_version == 5
+    if abe_version == 5
         # ZombiU hijacks the entire format so we must check against various values here.
         if abe_02 == 5
             math is_bfz = 1
@@ -827,17 +785,23 @@ startfunction read_abe_header
         endif
         if is_bfz = 2
             get max_block_size long # can vary from 0x20000 to 0x80000
-            if max_block_size == 0x20000 && max_block_size == 0x80000
+            if max_block_size == 0x20000
+                math is_bfz = 3
+            elif max_block_size == 0x80000
                 math is_bfz = 3
             endif
         endif
         if is_bfz = 3
-            get abe_05 long # 0x10 means base data, 0x1000 patch data that can replace other bfz files if needed.
-            if abe_05 == 0x10 && abe_05 == 0x1000
+            get abe_flags long # 0x10 means base data, 0x1000 patch data that can replace other bfz files if needed.
+            if abe_flags == 0x10
+                math is_bfz = 4
+            elif abe_flags == 0x1000
                 math is_bfz = 4
             endif
         endif
+        putarray 40 40 is_bfz
         if is_bfz = 4
+            comtype lzo1x
             # just what the hell happened here!?
             print " so, as this is a bfz file you're extracting you may need to wait a long time before you get your files. "
             print " yes the whole thing needs to be uploaded into memory. hang in tight! "
@@ -859,6 +823,7 @@ startfunction read_abe_header
             get abe_dummy3 long
             goto file_tab_offset
             math file = 0
+            # now we start from scratch here because bfz format is ENTIRELY reliant on fully decompressed data
             for i = 0 < file_tabs
                 get files long
                 get dummy1 long
@@ -1004,34 +969,37 @@ startfunction read_abe_header
             next i1
         else
             goto 12
-            get file_tabs long
-            get folder_tabs long
-            get abe_05 long
-            get file_tab_offset long
-            get abe_07 long
-            get folder_tab_offset long
-            get files1 long
-            get folders1 long
-            get files2 long
-            get folders2 long
-            get abe_13 long
-            get abe_14 long
-            get abe_15 long
-            goto file_tab_offset
-            math tab_type = 1
-            math tabs = file_tabs
-            callfunction read_abe_tab 1
-            goto folder_tab_offset
-            math tab_type = 2
-            math tabs = folder_tabs
-            callfunction read_abe_tab 1
-            callfunction final_step 1
         endif
-    else
-        string abe_unk_message p " unknown abe version %u " abe_version
-        print " %abe_unk_message% "
-        cleanexit
     endif
+    if is_bfz != 4
+        callfunction gather_abe_initial_info 1
+    endif
+endfunction
+
+startfunction gather_abe_initial_info
+    get file_tabs long
+    get folder_tabs long
+    get abe_05 long
+    get file_tab_offset long
+    get abe_07 long
+    get folder_tab_offset long
+    get files1 long
+    get folders1 long
+    get files2 long
+    get folders2 long
+    get abe_13 long
+    get abe_14 long
+    get abe_15 long
+    get default_cfg long
+    goto file_tab_offset
+    math tab_type = 1
+    math tabs = file_tabs
+    callfunction read_abe_tab 1
+    goto folder_tab_offset
+    math tab_type = 2
+    math tabs = folder_tabs
+    callfunction read_abe_tab 1
+    callfunction final_step 1
 endfunction
 
 math file = 0
@@ -1120,6 +1088,88 @@ startfunction parse_folder_tabs_02
             break
         endif
     next i2
+endfunction
+
+startfunction parse_compressed_files_from_abe_bigfile
+    if abe_version == 4
+        # "zipped" file format (Rabbids Go Home [Wii])
+    elif abe_version == 5
+        # "zipped" file format (Just Dance 4 [WiiU])
+    elif abe_version == 6
+        # "zipped" file format (The Adventures of Tintin: The Secret of the Unicorn [Windows Vista])
+    endif
+    math base_chunk_size = 0x3fffc # sometimes needed for non-compressed chunks
+    math chunk_num1 = 4
+    math chunk_num2 = 0
+    math chunk_num3 = 0
+    # must... decompress... the whole file... in blocks...
+    putvarchr MEMORY_FILE original_file_size 0
+    log MEMORY_FILE 0 0
+    goto 0 MEMORY_FILE
+    if abe_version != 4
+        get chunk_signature long
+        if chunk_signature != 1
+            print " the compressed file has a chunk signature not set to 1. "
+            cleanexit
+        endif
+        math chunk_num1 + 4
+    endif
+    get chunks long
+    # allocated calc bytes of listed block info
+    xmath chunk_num2 "chunks * 4"
+    if abe_version = 6
+        # extra field which can only handle 3 values
+    endif
+    xmath compressed_chunk_offset "real_file_offset + chunk_num2 + chunk_num1"
+    for j1 = 0 < chunks
+        get compressed_chunk_size long
+        putarray 20 j1 compressed_chunk_size
+        putarray 21 j1 compressed_chunk_offset
+        if compressed_chunk_size != 0
+            math compressed_chunk_offset + compressed_chunk_size
+        else
+            math compressed_chunk_offset + base_chunk_size
+        endif
+    next j1
+    append
+    for j1 = 0 < chunks
+        getarray compressed_chunk_size 20 j1
+        getarray compressed_chunk_offset 21 j1
+        if abe_version != 6
+            # this is how the compressed file format of an "abe" file works.
+            # first of all, a lot of calculations in regards to where all those
+            # compressed chunks of data are must be done externally.
+            # an arbritary "chunk size" number must also be set externally
+            # to ensure the entire file is decompressed without issue.
+            # if an compressed chunk of data isn't actually compressed,
+            # then it simply isn't compressed and pointers for non-compressed chunks
+            # must be calculated all the same.
+            if compressed_chunk_size != 0
+                clog MEMORY_FILE compressed_chunk_offset compressed_chunk_size base_chunk_size 0
+            else
+                log MEMORY_FILE compressed_chunk_offset base_chunk_size 0
+            endif
+        else
+            # in "abe version 6" files, the compressed file format has been revised but not in an significant fashion.
+            # instead of the decompression part being reliant on external values,
+            # all the info needed to decompress an compressed chunk of data is in said data itself.
+            # as for the rest, well... same thing otherwise.
+            # oh and the decompression algorithm actually changed this time.
+            # it's a variant of lzma that gives better compression results than lzo1x
+            # but there's no way to tell when looking through an entire bigfile.
+            if compressed_chunk_size != 0
+                goto compressed_chunk_offset
+                get decompressed_chunk_size1 long
+                get compressed_chunk_size1 long
+                math compressed_chunk_offset + 8
+                clog MEMORY_FILE compressed_chunk_offset compressed_chunk_size1 decompressed_chunk_size1 0
+            else
+                log MEMORY_FILE compressed_chunk_offset base_chunk_size 0
+            endif
+        endif
+    next j1
+    append
+    log full_file_name 0 original_file_size MEMORY_FILE
 endfunction
 
 startfunction read_bf64_header
@@ -1238,4 +1288,4 @@ startfunction read_bf64_header
 endfunction
 
 # codenames for games listed at the beginning of the script (WIP)
-# sally, sally_clean, sally_POLISH, PRINCE, RGH, RGH_defrag, WD, WD2, RS2, JD4, SPREE
+# sally, sally_clean, sally_POLISH, PRINCE, RGH, RGH_defrag, WD, WD2, RS2, JD4, SPREE, TINTIN
