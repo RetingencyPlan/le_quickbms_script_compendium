@@ -1096,7 +1096,7 @@ startfunction parse_compressed_files_from_abe_bigfile
     elif abe_version == 6
         # "zipped" file format (The Adventures of Tintin: The Secret of the Unicorn [Windows Vista])
     endif
-    math base_chunk_size = 0x3fffc # sometimes needed for non-compressed chunks
+    math base_chunk_size = 0x3fffc # needed for non-compressed chunks
     math chunk_num1 = 4
     math chunk_num2 = 0
     math chunk_num3 = 0
@@ -1130,37 +1130,38 @@ startfunction parse_compressed_files_from_abe_bigfile
     for j1 = 0 < chunks
         getarray compressed_chunk_size 20 j1
         getarray compressed_chunk_offset 21 j1
-        if abe_version != 6
-            # this is how the compressed file format of an "abe" file works.
-            # first of all, a lot of calculations in regards to where all those
-            # compressed chunks of data are must be done externally.
-            # an arbritary "chunk size" number must also be set externally
-            # to ensure the entire file is decompressed without issue.
-            # if an compressed chunk of data isn't actually compressed,
-            # then it simply isn't compressed and pointers for non-compressed chunks
-            # must be calculated all the same.
-            if compressed_chunk_size != 0
+        if compressed_chunk_size != 0
+            if abe_version != 6
+                # this is how the compressed file format of an "abe" file works.
+                # first of all, a lot of calculations in regards to where all those
+                # compressed chunks of data are must be done externally.
+                # an arbritary "chunk size" number must also be set externally
+                # to ensure the entire file is decompressed without issue.
+                # if an compressed chunk of data isn't actually compressed,
+                # then it simply isn't compressed and pointers for non-compressed chunks
+                # must be calculated all the same.
                 clog MEMORY_FILE compressed_chunk_offset compressed_chunk_size base_chunk_size 0
             else
-                log MEMORY_FILE compressed_chunk_offset base_chunk_size 0
-            endif
-        else
-            # in "abe version 6" files, the compressed file format has been revised but not in an significant fashion.
-            # instead of the decompression part being reliant on external values,
-            # all the info needed to decompress an compressed chunk of data is in said data itself.
-            # as for the rest, well... same thing otherwise.
-            # oh and the decompression algorithm actually changed this time.
-            # it's a variant of lzma that has much better compression than lzo1x
-            # but there's no way to tell when looking through an entire bigfile.
-            if compressed_chunk_size != 0
+                # in "abe version 6" files, the compressed file format has been revised but not in an significant fashion.
+                # instead of the decompression part being reliant on external values,
+                # all the info needed to decompress an compressed chunk of data is in said data itself.
+                # as for the rest, well... same thing otherwise.
+                # oh and the decompression algorithm actually changed this time.
+                # it's a variant of lzma that has much better compression than lzo1x
+                # but there's no way to tell when looking through an entire bigfile.
                 goto compressed_chunk_offset
                 get decompressed_chunk_size1 long
                 get compressed_chunk_size1 long
                 math compressed_chunk_offset + 8
                 clog MEMORY_FILE compressed_chunk_offset compressed_chunk_size1 decompressed_chunk_size1 0
-            else
-                log MEMORY_FILE compressed_chunk_offset base_chunk_size 0
             endif
+        else
+            # non-compressed chunks are just that, non-compressed.
+            # meaning they must be uploaded into memory as-is.
+            # because of this, they can actually blend in really well with compressed chunks
+            # to the point you couldn't really tell the difference between
+            # an compressed chunk and an non-compressed one even if you tried.
+            log MEMORY_FILE compressed_chunk_offset base_chunk_size 0
         endif
     next j1
     append
