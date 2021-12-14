@@ -799,7 +799,6 @@ startfunction read_abe_header
                 math is_bfz = 4
             endif
         endif
-        putarray 40 40 is_bfz
         if is_bfz = 4
             comtype lzo1x
             # just what the hell happened here!?
@@ -1117,9 +1116,6 @@ startfunction parse_compressed_files_from_abe_bigfile
     get chunks long
     # allocated calc bytes of listed block info
     xmath chunk_num2 "chunks * 4"
-    if abe_version = 6
-        # extra field which can only handle 3 values
-    endif
     xmath compressed_chunk_offset "real_file_offset + chunk_num2 + chunk_num1"
     for j1 = 0 < chunks
         get compressed_chunk_size long
