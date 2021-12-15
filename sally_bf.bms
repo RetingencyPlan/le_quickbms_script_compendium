@@ -29,7 +29,7 @@
 # Red Steel 2
 # Just Dance 2
 # Raving Rabbids: Travel in Time
-# Michael Jackson: The Experience
+# Michael Jackson: The Experience (Wii, PlayStation 3)
 # Just Dance 2: Extra Songs
 # Just Dance: Summer Party
 # Just Dance 3
@@ -356,20 +356,20 @@ startfunction final_step
     if bf_sign1 == 0x414245 # "ABE"
         for i2 = 0 < folders2
             set full_folder_name string ""
-            getarray folder_name 32 i2
-            getarray previous_folder 33 i2
-            getarray next_folder 34 i2
-            getarray neighbor_folder 35 i2
-            getarray flagship_title 36 i2
-            getarray folder_06 37 i2
+            getarray folder_name 15 i2
+            getarray previous_folder 16 i2
+            getarray next_folder 17 i2
+            getarray neighbor_folder 18 i2
+            getarray flagship_title 19 i2
+            getarray folder_06 20 i2
             math keyword_number = 0
-            putarray 64 keyword_number folder_name
+            putarray 22 keyword_number folder_name
             math keyword_number + 1
             if previous_folder != 32bit_max_number
                 for
-                    getarray folder_name 32 previous_folder
-                    getarray previous_folder 33 previous_folder
-                    putarray 64 keyword_number folder_name
+                    getarray folder_name 15 previous_folder
+                    getarray previous_folder 16 previous_folder
+                    putarray 22 keyword_number folder_name
                     math keyword_number + 1
                     if previous_folder == 32bit_max_number
                         break
@@ -379,12 +379,12 @@ startfunction final_step
             math max_names_for_this_folder = keyword_number
             xmath name_startoff "keyword_number - 1"
             for nk = 0 < max_names_for_this_folder
-                getarray folder_name 64 name_startoff
+                getarray folder_name 22 name_startoff
                 math name_startoff - 1
                 string full_folder_name + folder_name
                 string full_folder_name + "/"
             next nk
-            putarray 38 i2 full_folder_name
+            putarray 23 i2 full_folder_name
         next i2
 
         for i1 = 0 < files2
@@ -392,20 +392,19 @@ startfunction final_step
             getarray file_name 0 i1
             getarray file_02 1 i1
             getarray folder_number 2 i1
-            getarray full_folder_name 38 folder_number
+            getarray full_folder_name 23 folder_number
             getarray previous_file 3 i1
             getarray encapsulated_size 4 i1
             getarray file_timestamp 5 i1
             getarray file_name_hash 6 i1
-            getarray file_08 7 i1
-            getarray file_offset 8 i1
-            getarray block_size 9 i1
-            getarray file_size 10 i1
-            getarray file_12 11 i1
-            getarray file_13 12 i1
-            getarray file_14 13 i1
-            getarray file_15 14 i1
-            getarray file_16 15 i1
+            getarray file_offset 7 i1
+            getarray block_size 8 i1
+            getarray file_size 9 i1
+            getarray file_12 10 i1
+            getarray file_13 11 i1
+            getarray file_14 12 i1
+            getarray file_15 13 i1
+            getarray file_16 14 i1
             string full_file_name + full_folder_name
             string full_file_name + file_name
             if encapsulated_size != file_size
@@ -988,6 +987,9 @@ startfunction gather_abe_initial_info
     get abe_13 long
     get abe_14 long
     get abe_15 long
+    if abe_version == 6
+        get abe_16 long
+    endif
     get default_cfg long
     goto file_tab_offset
     math tab_type = 1
@@ -1040,23 +1042,23 @@ startfunction parse_file_tabs_02
         get file_07 long file_number
         putarray 6 file file_07
         get file_08 long file_number
-        putarray 7 file file_08
         get file_09 long file_number
-        putarray 8 file file_09
+        xmath file_0809 "(file_08 << 32) | file_09"
+        putarray 7 file file_0809
         get file_10 long file_number
-        putarray 9 file file_10
+        putarray 8 file file_10
         get file_11 long file_number
-        putarray 10 file file_11
+        putarray 9 file file_11
         get file_12 long file_number
-        putarray 11 file file_12
+        putarray 10 file file_12
         get file_13 long file_number
-        putarray 12 file file_13
+        putarray 11 file file_13
         get file_14 long file_number
-        putarray 13 file file_14
+        putarray 12 file file_14
         get file_15 long file_number
-        putarray 14 file file_15
+        putarray 13 file file_15
         getdstring file_16 0x40 file_number
-        putarray 15 file file_16
+        putarray 14 file file_16
         math file + 1
         if file == files2
             break
@@ -1068,19 +1070,19 @@ startfunction parse_folder_tabs_02
     for i2 = 0 < entries
         callfunction fetch_entry_name 1
         set folder_01 string entry_name
-        putarray 32 folder folder_01
+        putarray 15 folder folder_01
         get folder_02 long file_number
-        putarray 33 folder folder_02
+        putarray 16 folder folder_02
         get folder_03 long file_number
-        putarray 34 folder folder_03
+        putarray 17 folder folder_03
         get folder_04 long file_number
-        putarray 35 folder folder_04
+        putarray 18 folder folder_04
         get folder_05 long file_number
-        putarray 36 folder folder_05
+        putarray 19 folder folder_05
         get folder_06 long file_number
-        putarray 37 folder folder_06
+        putarray 20 folder folder_06
         getdstring folder_07 0x10 file_number
-        putarray 38 folder folder_07
+        putarray 21 folder folder_07
         math folder + 1
         if folder == folders2
             break
@@ -1284,4 +1286,4 @@ startfunction read_bf64_header
 endfunction
 
 # codenames for games listed at the beginning of the script (WIP)
-# sally, sally_clean, sally_POLISH, PRINCE, RGH, RGH_defrag, WD, WD2, RS2, JD4, SPREE, TINTIN
+# sally, sally_clean, sally_POLISH, PRINCE, RGH, RGH_defrag, WD, WD2, RS2, JD4, SPREE, TINTIN, TT3DS
