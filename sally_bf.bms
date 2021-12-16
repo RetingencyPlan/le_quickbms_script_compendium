@@ -817,10 +817,11 @@ startfunction read_abe_header
             get total_chunks long
             get abe_dummy1 longlong
             get abe_dummy2 longlong
-            get abe_dummy3 long
+            get default_cfg long
+
+            # now we start from scratch here because bfz format is ENTIRELY reliant on fully decompressed data
             goto file_tab_offset
             math file = 0
-            # now we start from scratch here because bfz format is ENTIRELY reliant on fully decompressed data
             for i = 0 < file_tabs
                 get files long
                 get dummy1 long
@@ -887,7 +888,7 @@ startfunction read_abe_header
                 endif
             next i
             goto chunk_tab_offset
-            log MEMORY_FILE 0 0
+            math chunk = 0
             for i = 0 < chunk_tabs
                 get chunks long
                 get dummy1 long
@@ -895,22 +896,40 @@ startfunction read_abe_header
                 for j = 0 < chunks
                     get decompressed_chunk_offset longlong
                     get compressed_chunk_offset longlong
-                    get chunk3 longlong
+                    get chunk3 long
+                    get chunk4 long
                     get decompressed_chunk_size long
                     get compressed_chunk_size long
-                    if compressed_chunk_size != 0xf8f8f8f8
-                        xmath putvarchr_offset "decompressed_chunk_offset - 1"
-                        putvarchr MEMORY_FILE putvarchr_offset 0
-                        goto decompressed_chunk_offset MEMORY_FILE
-                        append
-                        clog MEMORY_FILE compressed_chunk_offset compressed_chunk_size decompressed_chunk_size
-                        append
+                    if chunk3 != 0xf8f8f8f8
+                        putarray 27 chunk decompressed_chunk_offset
+                        putarray 28 chunk compressed_chunk_offset
+                        putarray 29 chunk chunk3
+                        putarray 30 chunk chunk4
+                        putarray 31 chunk decompressed_chunk_size
+                        putarray 32 chunk compressed_chunk_size
+                        math chunk + 1
                     endif
                 next j
                 if next_chunk_tab != 64bit_max_number
                     goto next_chunk_tab
                 endif
             next i
+
+            log MEMORY_FILE 0 0
+            append
+            for i3 = 0 < total_chunks
+                getarray decompressed_chunk_offset 27 i3
+                getarray compressed_chunk_offset 28 i3
+                getarray chunk3 29 i3
+                getarray chunk4 29 i3
+                getarray decompressed_chunk_size 31 i3
+                getarray compressed_chunk_size 32 i3
+                xmath putvarchr_offset "decompressed_chunk_offset - 1"
+                putvarchr MEMORY_FILE putvarchr_offset 0
+                goto decompressed_chunk_offset MEMORY_FILE
+                clog MEMORY_FILE compressed_chunk_offset compressed_chunk_size decompressed_chunk_size
+            next i3
+            append
 
             print " we're just about done. you'll get your files in no time! "
 
@@ -923,13 +942,13 @@ startfunction read_abe_header
                 getarray flagship_title 25 i2
                 getarray folder_06 26 i2
                 math keyword_number = 0
-                putarray 64 keyword_number folder_name
+                putarray 33 keyword_number folder_name
                 math keyword_number + 1
                 if previous_folder != 32bit_max_number
                     for
-                        getarray folder_name 32 previous_folder
-                        getarray previous_folder 33 previous_folder
-                        putarray 64 keyword_number folder_name
+                        getarray folder_name 21 previous_folder
+                        getarray previous_folder 22 previous_folder
+                        putarray 33 keyword_number folder_name
                         math keyword_number + 1
                         if previous_folder == 32bit_max_number
                             break
@@ -939,12 +958,12 @@ startfunction read_abe_header
                 math max_names_for_this_folder = keyword_number
                 xmath name_startoff "keyword_number - 1"
                 for nk = 0 < max_names_for_this_folder
-                    getarray folder_name 64 name_startoff
+                    getarray folder_name 33 name_startoff
                     math name_startoff - 1
                     string full_folder_name + folder_name
                     string full_folder_name + "/"
                 next nk
-                putarray 27 i2 full_folder_name
+                putarray 34 i2 full_folder_name
             next i2
 
             for i1 = 0 < total_files
@@ -956,12 +975,13 @@ startfunction read_abe_header
                 getarray file_name 15 i1
                 getarray file_size 16 i1
                 getarray folder_number 17 i1
-                getarray full_folder_name 27 folder_number
+                getarray full_folder_name 34 folder_number
                 getarray file_08 18 i1
                 getarray previous_file 19 i1
                 getarray file_10 20 i1
                 string full_file_name + full_folder_name
                 string full_file_name + file_name
+                goto file_offset MEMORY_FILE
                 log full_file_name file_offset file_size MEMORY_FILE
             next i1
         else
