@@ -981,7 +981,6 @@ startfunction read_abe_header
                 getarray file_10 20 i1
                 string full_file_name + full_folder_name
                 string full_file_name + file_name
-                goto file_offset MEMORY_FILE
                 log full_file_name file_offset file_size MEMORY_FILE
             next i1
         else
