@@ -765,7 +765,8 @@ startfunction read_abe_header
     # if this number isn't 4 under any circumstances the script will treat it as a normal bf file.
     comtype copy
     get abe_version long
-    if abe_version = 4
+	if abe_version = 3
+    elif abe_version = 4
     elif abe_version = 5
     elif abe_version = 6
     else
@@ -1013,7 +1014,9 @@ startfunction gather_abe_initial_info
     if abe_version == 6
         get abe_16 long
     endif
-    get default_cfg long
+	if abe_version != 3
+        get default_cfg long
+	endif
     goto file_tab_offset
     math tab_type = 1
     math tabs = file_tabs
@@ -1334,4 +1337,4 @@ startfunction read_bf64_header
 endfunction
 
 # codenames for games listed at the beginning of the script (WIP)
-# sally, sally_clean, sally_POLISH, PRINCE, RGH, RGH_defrag, WD, WD2, RS2, JD4, SPREE, TINTIN, TT3DS, MJ_PS3, TMNT, ncis, cloudy, naruto
+# sally, sally_clean, sally_POLISH, PRINCE, KingKongTheGame, Rayman4, RGH, RGH_defrag, WD, WD2, RS2, JD4, SPREE, TINTIN, TT3DS, MJ_PS3, TMNT, ncis, cloudy, naruto
