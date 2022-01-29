@@ -1,12 +1,12 @@
 # Ubisoft - .bf/.bfz
 # --- "BIG", "BUG" ---
-# Beyond Good and Evil
-# Prince of Persia: The Sands of Time
-# Prince of Persia: Warrior Within
-# Prince of Persia: Revelations
-# Peter Jackson's King Kong: The Official Game of the Movie
-# Prince of Persia: The Two Thrones
-# Rayman Raving Rabbids
+# Beyond Good and Evil (PlayStation 2, GameCube, Xbox, Windows XP)
+# Prince of Persia: The Sands of Time (PlayStation 2, GameCube, Xbox, Windows XP)
+# Prince of Persia: Warrior Within (PlayStation 2, GameCube, Xbox, Windows XP)
+# Prince of Persia: Revelations (PlayStation Portable)
+# Peter Jackson's King Kong: The Official Game of the Movie (PlayStation 2, GameCube, Xbox, PlayStation Portable, Xbox 360, Windows XP)
+# Prince of Persia: The Two Thrones (PlayStation 2, GameCube, Xbox, Windows XP)
+# Rayman Raving Rabbids (PlayStation 2, Wii, Xbox 360, Windows XP)
 # TMNT
 # Prince of Persia: Rival Swords
 # My Word Coach
@@ -18,32 +18,33 @@
 # Petz: Horse Club
 # Rayman Raving Rabbids: TV Party
 # Cloudy with a Chance of Meatballs
-# Just Dance
-# James Cameron's Avatar: The Game
+# Just Dance (Wii)
+# James Cameron's Avatar: The Game (Wii)
 # Prince of Persia: The Forgotten Sands
 # NCIS
 # --- "ABE" ---
-# Rabbids Go Home
+# Rabbids Go Home (Wii, Windows XP)
 # Rabbids Channel
 # Rabbids Lab
-# Red Steel 2
-# Just Dance 2
+# Red Steel 2 (Wii)
+# Just Dance 2  (Wii)
 # Raving Rabbids: Travel in Time
 # Michael Jackson: The Experience (Wii, PlayStation 3)
 # Just Dance 2: Extra Songs
 # Just Dance: Summer Party
-# Just Dance 3
+# Just Dance 3 (Wii)
 # The Adventures of Tintin: The Game
 # The Adventures of Tintin: The Secret of the Unicorn
 # The Black Eyed Peas Experience
 # ABBA: You Can Dance
 # Just Dance: Best of
 # Just Dance: Greatest Hits
-# Rabbids Land
-# Just Dance 4
-# ZombiU
+# Rabbids Land (Wii U)
+# Just Dance 4 (Wii, Wii U)
+# ZombiU (Wii U)
 # --- "BF64" ---
-# Shaun White Skateboarding
+# Naruto: The Broken Bond (Xbox 360)
+# Shaun White Skateboarding (Wii)
 # (and possibly others that use either of these three formats)
 
 math 32bit_max_number = 0xffffffff
@@ -819,7 +820,7 @@ startfunction read_abe_header
             get abe_dummy2 longlong
             get default_cfg long
 
-            # now we start from scratch here because bfz format is ENTIRELY reliant on fully decompressed data
+            # now we start from scratch here because this bfz format is ENTIRELY reliant on fully decompressed data
             goto file_tab_offset
             math file = 0
             for i = 0 < file_tabs
@@ -1207,47 +1208,74 @@ startfunction read_bf64_header
     get bf64_folder_info_size long
     get bf64_file_info_offset longlong
     get bf64_folder_info_offset longlong
-    goto bf64_file_info_offset
-    getdstring file_pre_info 0x0c
-    math file = 0
-    for i = 0 < files
-        get file_01 long
-        putarray 0 i file_01
-        get file_02 longlong
-        putarray 1 i file_02
-        get file_03 long
-        putarray 2 i file_03
-        get file_04 long
-        putarray 3 i file_04
-        get file_05 long
-        putarray 4 i file_05
-        get file_06 long
-        putarray 5 i file_06
-        get file_07 time
-        putarray 6 i file_07
-        getdstring file_08 0x40
-        putarray 7 i file_08
-        get file_09 long
-        putarray 8 i file_09
-        get file_10 long
-        putarray 9 i file_10
-    next i
+	math file = 0
+	for t1 = 0
+	    goto bf64_file_info_offset
+		get file_tab_entries long
+		get next_file_tab_offset longlong
+		for i = 0 < file_tab_entries 
+			get file_01 long
+			putarray 0 file file_01
+			get file_02 longlong
+			putarray 1 file file_02
+			get file_03 long
+			putarray 2 file file_03
+			get file_04 long
+			putarray 3 file file_04
+			get file_05 long
+			putarray 4 file file_05
+			get file_06 long
+			putarray 5 file file_06
+			get file_07 time
+			putarray 6 file file_07
+			getdstring file_08 0x40
+			putarray 7 file file_08
+			get file_09 long
+			putarray 8 file file_09
+			if bf64_file_info_size == 0x79
+				getdstring file_10 0x21
+				get file_11 long
+				putarray 9 file file_11
+			elif bf64_file_info_size == 0x58
+				get file_10 long
+				putarray 9 file file_10
+			endif
+			math file + 1
+		next i
+		if next_file_tab_offset != 64bit_max_number
+		    math bf64_file_info_offset == next_file_tab_offset
+		else
+		    break
+		endif
+	next t1
     goto bf64_folder_info_offset
     getdstring file_pre_info 0x0c
-    for i = 0 < folders
-        get folder_01 long
-        putarray 10 i folder_01
-        get folder_02 long
-        putarray 11 i folder_02
-        get folder_03 long
-        putarray 12 i folder_03
-        get folder_04 long
-        putarray 13 i folder_04
-        get folder_05 long
-        putarray 14 i folder_05
-        getdstring folder_06 0x40
-        putarray 15 i folder_06
-    next i
+	math folder = 0
+	for t2 = 0
+	    goto bf64_folder_info_offset
+		get folder_tab_entries long
+		get next_folder_tab_offset longlong
+		for i = 0 < folders
+			get folder_01 long
+			putarray 10 folder folder_01
+			get folder_02 long
+			putarray 11 folder folder_02
+			get folder_03 long
+			putarray 12 folder folder_03
+			get folder_04 long
+			putarray 13 folder folder_04
+			get folder_05 long
+			putarray 14 folder folder_05
+			getdstring folder_06 0x40
+			putarray 15 folder folder_06
+			math folder + 1
+		next i
+		if next_file_tab_offset != 64bit_max_number
+		    math bf64_file_info_offset == next_file_tab_offset
+		else
+		    break
+		endif
+	next t2
     for i = 0 < folders
         set full_folder_name string ""
         getarray first_file_within_folder 10 i
