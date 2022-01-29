@@ -1,6 +1,8 @@
-# [ GEAR BigFile] - *.bf/*.big
+# [ GEAR BigFile ] - *.bf/*.big/*.bin
 # ---
-# Rocky Balboa (PSP)
+# Rocky Balboa (PlayStation Portable)
+# Shaun White Snowboarding (PlayStation Portable) - SOUNDSTREAMS_PSP.BIN
+# Shaun White Snowboarding: Road Trip (Wii) - SoundStreams_WII.bin
 
 idstring "[ GEAR BigFile ]"
 get gear_01 long
