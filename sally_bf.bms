@@ -1248,14 +1248,12 @@ startfunction read_bf64_header
 		    break
 		endif
 	next t1
-    goto bf64_folder_info_offset
-    getdstring file_pre_info 0x0c
 	math folder = 0
 	for t2 = 0
 	    goto bf64_folder_info_offset
 		get folder_tab_entries long
 		get next_folder_tab_offset longlong
-		for i = 0 < folders
+		for i = 0 < folder_tab_entries
 			get folder_01 long
 			putarray 10 folder folder_01
 			get folder_02 long
@@ -1270,8 +1268,8 @@ startfunction read_bf64_header
 			putarray 15 folder folder_06
 			math folder + 1
 		next i
-		if next_file_tab_offset != 64bit_max_number
-		    math bf64_file_info_offset == next_file_tab_offset
+		if next_folder_tab_offset != 64bit_max_number
+		    math bf64_folder_info_offset == next_folder_tab_offset
 		else
 		    break
 		endif
