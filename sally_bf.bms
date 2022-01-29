@@ -765,7 +765,7 @@ startfunction read_abe_header
     # if this number isn't 4 under any circumstances the script will treat it as a normal bf file.
     comtype copy
     get abe_version long
-	if abe_version = 3
+    if abe_version = 3
     elif abe_version = 4
     elif abe_version = 5
     elif abe_version = 6
@@ -1014,9 +1014,9 @@ startfunction gather_abe_initial_info
     if abe_version == 6
         get abe_16 long
     endif
-	if abe_version != 3
+    if abe_version != 3
         get default_cfg long
-	endif
+    endif
     goto file_tab_offset
     math tab_type = 1
     math tabs = file_tabs
@@ -1214,72 +1214,72 @@ startfunction read_bf64_header
     get bf64_folder_info_size long
     get bf64_file_info_offset longlong
     get bf64_folder_info_offset longlong
-	math file = 0
-	for t1 = 0
-	    goto bf64_file_info_offset
-		get file_tab_entries long
-		get next_file_tab_offset longlong
-		for i = 0 < file_tab_entries 
-			get file_01 long
-			putarray 0 file file_01
-			get file_02 longlong
-			putarray 1 file file_02
-			get file_03 long
-			putarray 2 file file_03
-			get file_04 long
-			putarray 3 file file_04
-			get file_05 long
-			putarray 4 file file_05
-			get file_06 long
-			putarray 5 file file_06
-			get file_07 time
-			putarray 6 file file_07
-			getdstring file_08 0x40
-			putarray 7 file file_08
-			get file_09 long
-			putarray 8 file file_09
-			if bf64_file_info_size == 0x79
-				getdstring file_10 0x21
-				get file_11 long
-				putarray 9 file file_11
-			elif bf64_file_info_size == 0x58
-				get file_10 long
-				putarray 9 file file_10
-			endif
-			math file + 1
-		next i
-		if next_file_tab_offset != 64bit_max_number
-		    math bf64_file_info_offset == next_file_tab_offset
-		else
-		    break
-		endif
-	next t1
-	math folder = 0
-	for t2 = 0
-	    goto bf64_folder_info_offset
-		get folder_tab_entries long
-		get next_folder_tab_offset longlong
-		for i = 0 < folder_tab_entries
-			get folder_01 long
-			putarray 10 folder folder_01
-			get folder_02 long
-			putarray 11 folder folder_02
-			get folder_03 long
-			putarray 12 folder folder_03
-			get folder_04 long
-			putarray 13 folder folder_04
-			get folder_05 long
-			putarray 14 folder folder_05
-			getdstring folder_06 0x40
-			putarray 15 folder folder_06
-			math folder + 1
-		next i
-		if next_folder_tab_offset != 64bit_max_number
-		    math bf64_folder_info_offset == next_folder_tab_offset
-		else
-		    break
-		endif
-	next t2
+    math file = 0
+    for t1 = 0
+        goto bf64_file_info_offset
+        get file_tab_entries long
+        get next_file_tab_offset longlong
+        for i = 0 < file_tab_entries 
+            get file_01 long
+            putarray 0 file file_01
+            get file_02 longlong
+            putarray 1 file file_02
+            get file_03 long
+            putarray 2 file file_03
+            get file_04 long
+            putarray 3 file file_04
+            get file_05 long
+            putarray 4 file file_05
+            get file_06 long
+            putarray 5 file file_06
+            get file_07 time
+            putarray 6 file file_07
+            getdstring file_08 0x40
+            putarray 7 file file_08
+            get file_09 long
+            putarray 8 file file_09
+            if bf64_file_info_size == 0x79
+                getdstring file_10 0x21
+                get file_11 long
+                putarray 9 file file_11
+            elif bf64_file_info_size == 0x58
+                get file_10 long
+                putarray 9 file file_10
+            endif
+            math file + 1
+        next i
+        if next_file_tab_offset != 64bit_max_number
+            math bf64_file_info_offset == next_file_tab_offset
+        else
+            break
+        endif
+    next t1
+    math folder = 0
+    for t2 = 0
+        goto bf64_folder_info_offset
+        get folder_tab_entries long
+        get next_folder_tab_offset longlong
+        for i = 0 < folder_tab_entries
+            get folder_01 long
+            putarray 10 folder folder_01
+            get folder_02 long
+            putarray 11 folder folder_02
+            get folder_03 long
+            putarray 12 folder folder_03
+            get folder_04 long
+            putarray 13 folder folder_04
+            get folder_05 long
+            putarray 14 folder folder_05
+            getdstring folder_06 0x40
+            putarray 15 folder folder_06
+            math folder + 1
+        next i
+        if next_folder_tab_offset != 64bit_max_number
+            math bf64_folder_info_offset == next_folder_tab_offset
+        else
+            break
+        endif
+    next t2
     for i = 0 < folders
         set full_folder_name string ""
         getarray first_file_within_folder 10 i
