@@ -1,0 +1,36 @@
+# Ubisoft - .fat+.big
+# ---
+# Prince of Persia: The Sands of Time
+# Prince of Persia: Revelations (PlayStation Portable) - SOUNDPSP.[FAT+BIG]
+
+math fat_num = 0
+math big_num = 0
+get ext1 extension
+if ext1 == "fat"
+    math big_num = 1
+    callfunction load1 1
+elif ext1 == "big"
+    math fat_num = 1
+    callfunction load1 1
+endif
+
+startfunction load1
+    open FDDE "fat" fat_num
+    open FDDE "big" big_num
+    get fat_size asize fat_num
+    for fat_pos = 0 < fat_size
+        goto fat_pos fat_num
+        get current_position long fat_num
+        get file_offset long fat_num
+        get file_size long fat_num
+        get DUMMY4 long fat_num
+        if DUMMY4 != 0
+            print " non-zero reserved number is here "
+        endif
+        get file_name_string_size long fat_num
+        math fat_pos + 20
+        math fat_pos + file_name_string_size
+        getdstring file_name file_name_string_size
+        log file_name file_offset file_size big_num
+    next
+endfunction
