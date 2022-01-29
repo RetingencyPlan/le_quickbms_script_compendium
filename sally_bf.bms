@@ -17,24 +17,27 @@
 # Imagine Champion Rider
 # Petz: Horse Club
 # Rayman Raving Rabbids: TV Party
-# Cloudy with a Chance of Meatballs
+# Cloudy with a Chance of Meatballs (Wii, PlayStation 3(?), Xbox 360, Windows XP(?))
 # Just Dance (Wii)
 # James Cameron's Avatar: The Game (Wii)
 # Prince of Persia: The Forgotten Sands
-# NCIS
+# NCIS (Wii, PlayStation 3(?), Xbox 360, Windows XP(?))
 # --- "ABE" ---
+# Teenage Mutant Ninja Turtles: Turtles in Time Re-Shelled (PlayStation 3, Xbox 360(?))
 # Rabbids Go Home (Wii, Windows XP)
 # Rabbids Channel
 # Rabbids Lab
 # Red Steel 2 (Wii)
-# Just Dance 2  (Wii)
+# Just Dance 2 (Wii)
+# MotionSports (Xbox 360)
 # Raving Rabbids: Travel in Time
 # Michael Jackson: The Experience (Wii, PlayStation 3)
 # Just Dance 2: Extra Songs
 # Just Dance: Summer Party
 # Just Dance 3 (Wii)
-# The Adventures of Tintin: The Game
-# The Adventures of Tintin: The Secret of the Unicorn
+# From Dust
+# The Adventures of Tintin: The Secret of the Unicorn (Wii, 3DS, PlayStation 3(?), Xbox 360(?), Windows Vista)
+# Raving Rabbids: Alive and Kicking (Xbox 360)
 # The Black Eyed Peas Experience
 # ABBA: You Can Dance
 # Just Dance: Best of
@@ -1331,4 +1334,4 @@ startfunction read_bf64_header
 endfunction
 
 # codenames for games listed at the beginning of the script (WIP)
-# sally, sally_clean, sally_POLISH, PRINCE, RGH, RGH_defrag, WD, WD2, RS2, JD4, SPREE, TINTIN, TT3DS
+# sally, sally_clean, sally_POLISH, PRINCE, RGH, RGH_defrag, WD, WD2, RS2, JD4, SPREE, TINTIN, TT3DS, MJ_PS3, TMNT, ncis, cloudy, naruto
