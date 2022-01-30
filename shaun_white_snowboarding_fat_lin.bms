@@ -1,0 +1,33 @@
+# Ubisoft - .fat+.lin
+# ---
+# Shaun White Snowboarding (PlayStation 2) - PS2_L.[FAT+LIN]
+# Shaun White Snowboarding (PlayStation Portable) - PSP_L.[FAT+LIN]
+# ---
+# apparently this kind of file format is part of an game engine internally named Opal, 
+# sometimes referred to as "Opal Engine" in the game files.
+# although this one acts as a "generic file archival container" of sorts...
+
+math fat_num = 0
+math lin_num = 0
+get ext1 extension
+if ext1 == "FAT"
+    math lin_num = 1
+	callfunction load1 1
+elif ext1 == "LIN"
+    math fat_num = 1
+	callfunction load1 1
+endif
+
+startfunction load1
+    open FDDE "FAT" fat_num
+	open FDDE "LIN" lin_num
+	get fat_size asize fat_num
+	math fat_pos = 0
+	do
+	    goto fat_pos fat_num
+		get file_info line fat_num
+		string file_elements S file_info file_name file_offset file_size
+		log file_name file_offset file_size lin_num
+		savepos fat_pos fat_num
+	while fat_pos < fat_size
+endfunction
