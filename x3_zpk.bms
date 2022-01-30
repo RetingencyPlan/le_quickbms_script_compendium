@@ -1,0 +1,67 @@
+# X-Men: The Official Game (PlayStation 2, Xbox, Xbox 360) - X3.ZPK
+# ---
+# this script covers the "bigfile" format used in only this game. maybe.
+# this format takes advantage of like 4 indexes, only the second one is needed
+# to actually access the files.
+# the rest is treated in a fairly straightforward order (1->3->4)
+# for as long as the structure of the 2nd index is still being dealt with.
+# not to mention, there can be as many duplicates of a file stored within
+# the so-called "zpack" file (which is the ZPK file you're looking at) as possible.
+# said duplicates can have actual offset values for them, to the point of
+# padding out a "zpack" for more than necessary.
+# this script doesn't deal with all these duplicates.
+
+get x3_zpk filename
+if x3_zpk != "X3.ZPK"
+    cleanexit
+endif
+
+get zpk_size asize
+xmath zpk_info_offset "zpk_size - 2048"
+goto zpk_info_offset
+get zpk_01 long # 0
+get zpk_02 long # 1
+get zpk_03 long # 2
+get zpk_04 long # weird value that can range from 0x2bd0 to 0x2c62
+for i = 0 < 4
+    get entry_info_size long
+    putarray 0 i entry_info_size
+    get entry_info_offset long
+    putarray 1 i entry_info_offset
+next i
+get entries long
+get zpk_06 long # 1
+get zpk_07 long # 3
+
+getarray overall_file_info_entries 0 0
+getarray overall_file_info_offset 1 0
+getarray b1 0 1 # weird value here, like 0x142601
+getarray overall_file_id_info_offset 1 1
+getarray individual_file_name_depot_size 0 2
+getarray individual_file_name_depot_offset 1 2
+log MEMORY_FILE individual_file_name_depot_offset individual_file_name_depot_size
+getarray individual_file_offset_depot_size 0 3
+getarray individual_file_offset_depot_offset 1 3
+log MEMORY_FILE2 individual_file_offset_depot_offset individual_file_offset_depot_size
+goto overall_file_id_info_offset
+for i = 0 < entries
+    get file_id short
+    if file_id != 0xffff
+        xmath individual_file_info_offset "(file_id * 0x18) + 4"
+        # ^ "plus 4" is needed. otherwise the script might parse the file info at a wrong position.
+        math individual_file_info_offset + overall_file_info_offset
+        savepos tmp_01
+        goto individual_file_info_offset
+	    get individual_file_name_offset long
+	    goto individual_file_name_offset MEMORY_FILE
+	    get file_name string MEMORY_FILE
+	    get file_size long
+	    get file_duplicates longlong
+	    get file_offset_id longlong
+	    xmath file_offset_offset "file_offset_id * 4"
+	    goto file_offset_offset MEMORY_FILE2
+	    get file_offset long MEMORY_FILE2
+		log file_name file_offset file_size
+        goto tmp_01
+    endif
+next i
