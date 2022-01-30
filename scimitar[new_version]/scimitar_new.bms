@@ -1,24 +1,112 @@
 # Ubisoft - *.forge
 # ---
-# Assassin's Creed (PlayStation 3, Xbox 360)
-# Assassin's Creed: Director's Cut (Windows)
+# Assassin's Creed (PlayStation 3, Xbox 360) - version 0x19
+# Assassin's Creed: Director's Cut (Windows Vista) - version 0x19
+# Shaun White Snowboarding (PlayStation 3, Xbox 360, Windows Vista) - version 0x1a
+# Prince of Persia (PlayStation 3, Xbox 360, Windows Vista) - version 0x1a
 
 include "scimitar_compressed_container.bms"
 
+get scm_name filename
 idstring "scimitar\0"
 get scm_ver long
-if scm_ver != 0x19
-	cleanexit
-endif
-get init_info_off longlong
+get scm_info_off longlong
 get scm_03 long
 get scm_04 long
+/*
+if scm_ver < 0x17
+    getdstring scm_05 1
+endif
+math scm_05 = 0
+*/
 
-goto init_info_off
-get files long
-get tabs longlong
-math tabs + 1
-get info_02 long
+goto scm_info_off
+get i01 long
+get i02 long
+if i02 != 1
+    print " more tabs are here "
+    cleanexit
+endif
+get i03 long
+get i04 long
+get i05 long
+get i06 long
+get i07 long
+get i08 long
+get i09 longlong
+goto i09
+for i = 0 < i02
+    get ti01 long # param_1
+    get ti02 long # param_1 + 4
+    get ti03 longlong # param_1 + 8
+    get ti07 longlong # param_1 + 0x10
+    xmath ti07_1 "ti08 & 0xffffffff"
+    xmath ti07_2 "(ti08 >> 32) & 0xffffffff"
+    get ti08 longlong # param_1 + 0x18
+    xmath ti08_1 "ti08 & 0xffffffff"
+    xmath ti08_2 "(ti08 >> 32) & 0xffffffff"
+    get ti04 longlong # param_1 + 0x20
+    get ti05 long # param_1 + 0x28
+    get ti06 long # param_1 + 0x2c
+    # (todo) handle ti04 and ti05
+    savepos temp_01
+    for j1 = 0 < ti01
+        math alt_mode = 0
+        goto ti03
+        get fiwt01 longlong
+        get fiwt02 long
+        get fiwt03 long
+        math ti03 + 0x10
+        goto fiwt01
+        getdstring is_filedata 8
+        if is_filedata != "FILEDATA"
+            break
+        endif
+        getdstring fd_n1 0x80
+        getdstring fd_n2 0xff
+        get fd03 long
+        get fd04 long
+        get fd05 longlong
+        get fd06 long
+        get fd07 long
+        get fd08 long
+        get fd09 long
+        get fd10 long
+        get fd11 long
+        get fd12 long
+        get fd13 byte
+        get fd14 long
+        savepos fd_o
+        get fd_sign long
+        if fd_sign != 0
+            if fd_sign == 0x00011b01
+                string temp_name + ".bao"
+            elif fd_sign == 0x10001f02
+                string temp_name + ".sbao"
+            elif fd_sign == 0x99fa0410
+                math alt_mode = 1
+            elif fd_sign == 0x57fbaa33
+                math alt_mode = 1
+            else
+                print " unidentified file signature. "
+                # what that supposed to mean
+            endif
+        endif
+        if alt_mode != 1
+            string temp_name p "%u/%08x/%08x" i fd12 fd03
+            log temp_name fd_o fd04
+        else
+            string temp_name p "%u/%08x/[%s]%08x" i fd12 fd_n1 fd03
+            math container_offset = fd_o
+            math container_passes = 2
+            callfunction read_container 1
+        endif
+    next j1
+    goto temp_01
+next i
+
+/*
+get info_02 longlong
 get info_03 longlong
 get max_files long
 get info_04 long
@@ -34,69 +122,74 @@ get info_12 longlong
 get info_13 longlong
 goto info_08
 for i2 = 0 < max_files
-	get file_01 longlong
-	putarray 0 i2 file_01
-	get file_02 long
-	putarray 1 i2 file_02
-	get file_03 long
-	putarray 2 i2 file_03
+    get file_01 longlong
+    putarray 0 i2 file_01
+    get file_02 long
+    putarray 1 i2 file_02
+    get file_03 long
+    putarray 2 i2 file_03
 next i2
 goto info_12
 for i3 = 0 < max_files
-	get file_04 long
-	putarray 3 i3 file_04
-	get file_05 long
-	putarray 4 i3 file_05
-	get file_06 long
-	putarray 5 i3 file_06
-	get file_07 longlong
-	putarray 6 i3 file_07
-	get file_08 longlong
-	putarray 7 i3 file_08
-	get file_09 long
-	putarray 8 i3 file_09
-	get file_10 long
-	putarray 9 i3 file_10
-	get file_11 long
-	putarray 10 i3 file_11
-	get file_12 time
-	putarray 11 i3 file_12
-	getdstring file_13 0x80
-	putarray 12 i3 file_13
-	get file_13 longlong
-	putarray 13 i3 file_13
-	get file_14 longlong
-	putarray 14 i3 file_14
+    get file_04 long
+    putarray 3 i3 file_04
+    get file_05 long
+    putarray 4 i3 file_05
+    get file_06 long
+    putarray 5 i3 file_06
+    get file_07 longlong
+    putarray 6 i3 file_07
+    get file_08 longlong
+    putarray 7 i3 file_08
+    get file_09 long
+    putarray 8 i3 file_09
+    get file_10 long
+    putarray 9 i3 file_10
+    get file_11 long
+    putarray 10 i3 file_11
+    get file_12 time
+    putarray 11 i3 file_12
+    getdstring file_13 0x80
+    putarray 12 i3 file_13
+    get file_13 longlong
+    putarray 13 i3 file_13
+    get file_14 longlong
+    putarray 14 i3 file_14
 next i3
 
 for i4 = 0 < max_files
-	getarray file_offset 0 i4
-	goto file_offset
-	getdstring supposed_file_name 0x187
-	get md_01 long
-	get md_02 long
-	get md_03 long
-	get md_04 long
-	getdstring md_05 12
-	get md_06 long
-	get md_07 long
-	get md_08 long
-	get md_09 long
-	get md_10 long
-	get md_11 byte
-	savepos physical_file_offset
-	putarray 27 i4 physical_file_offset
+    getarray file_offset 0 i4
+    goto file_offset
+    getdstring is_filedata 8
+    if is_filedata != "FILEDATA"    
+        break
+    endif
+    getdstring init_name 0x80
+    getdstring alt_name 0xff
+    get filedata01 long
+    get filedata02 long
+    get filedata03 longlong
+    get filedata04 long
+    get filedata05 long
+    get filedata06 long
+    get filedata07 long
+    get filedata08 long
+    get filedata09 long
+    get filedata10 long
+    getdstring filedata11 1
+    get filedata12 long
 next i4
 
 for i5 = 0 < files
-	getarray physical_file_offset 27 i5
-	getarray file_id 1 i5
-	getarray file_size 2 i5
-	getarray file_name 12 i5
-	math container_offset == physical_file_offset
-	math container_passes = 2
-	callfunction read_container 1
-	if container_read != 1
-		log file_name physical_file_offset file_size
-	endif
+    getarray physical_file_offset 27 i5
+    getarray file_id 1 i5
+    getarray file_size 2 i5
+    getarray file_name 12 i5
+    math container_offset == physical_file_offset
+    math container_passes = 2
+    callfunction read_container 1
+    if container_read != 1
+        log file_name physical_file_offset file_size
+    endif
 next i5
+*/
