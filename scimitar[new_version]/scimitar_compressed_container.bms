@@ -324,7 +324,7 @@ startfunction parse_data
                          print " unknown alternative BAO handling. " 
                     endif
                 else
-                    print " unknown BAO handling from scimitar version 19 archives. "
+                    print " unknown BAO handling from scimitar version 26 archives. "
                 endif
             endif
             #string en2 p "%s/bao_o/[%s]%08x.%08x" tn1 entry_name_string entry_hash entry_type
