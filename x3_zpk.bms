@@ -52,16 +52,16 @@ for i = 0 < entries
         math individual_file_info_offset + overall_file_info_offset
         savepos tmp_01
         goto individual_file_info_offset
-	    get individual_file_name_offset long
-	    goto individual_file_name_offset MEMORY_FILE
-	    get file_name string MEMORY_FILE
-	    get file_size long
-	    get file_duplicates longlong
-	    get file_offset_id longlong
-	    xmath file_offset_offset "file_offset_id * 4"
-	    goto file_offset_offset MEMORY_FILE2
-	    get file_offset long MEMORY_FILE2
-		log file_name file_offset file_size
+        get individual_file_name_offset long
+        goto individual_file_name_offset MEMORY_FILE
+        get file_name string MEMORY_FILE
+        get file_size long
+        get file_duplicates longlong
+        get file_offset_id longlong
+        xmath file_offset_offset "file_offset_id * 4"
+        goto file_offset_offset MEMORY_FILE2
+        get file_offset long MEMORY_FILE2
+        log file_name file_offset file_size
         goto tmp_01
     endif
 next i
