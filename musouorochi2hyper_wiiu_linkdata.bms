@@ -1,0 +1,119 @@
+# Musou Orochi 2 Hyper (Wii U)
+# Warriors Orochi 3 Hyper (Wii U) - worldwide title of the above, but same game
+# ---
+# LINKDATA.[IDX+BIN]
+# LINKDATA2.[IDX+BIN]
+# LINKDATA3.[IDX+BIN]
+# ---
+# this script covers the "bigfile" format used in the game whose names can be seen above.
+# said format has only the barest of minimum in terms of structure:
+# two file size values, a file offset value and a flag that says if this file is "compressed" or not.
+# if it is, then said file is packed into a format of its own.
+# where the file is divided into compressed blocks that must either be decompressed
+# using a zlib decompressor that the game uses or through some calcs if said block turns out to not be compressed.
+# the latter threw me off a lot of the time so the script had to be more than a bit polished
+# to get the "decompression" part to work at all.
+# when in doubt, you can apply this script on either the BIN file or the IDX file.
+# ---
+# this script was tested on the base game files and the patch files.
+# the DLC files aren't stored in one of those weird "LINKDATA" files,
+# but instead stored across several folders (example - 00c0/DATA)
+# and are all bearing the bin extension (example - 00c0/DATA/01642.bin)
+
+endian big
+
+get linkdata_name basename
+if linkdata_name == "LINKDATA"
+    callfunction handle_linkdata 1
+elif linkdata_name == "LINKDATA2"
+    callfunction handle_linkdata 1
+elif linkdata_name == "LINKDATA3"
+    callfunction handle_linkdata 1
+else
+    cleanexit
+endif
+
+comtype zlib
+
+startfunction handle_linkdata
+    open FDDE "IDX" 0
+    open FDDE "BIN" 1
+    math idx_pos = 0
+    get idx_size asize 0
+    for i = 0
+        string temp_name p "%u.bin" i
+        math do_not_extract = 0
+        math data_offset = 0
+        goto idx_pos 0
+        if idx_pos == idx_size
+            break
+        endif
+        get file_offset longlong 0
+        get file_size1 longlong 0
+        get file_size2 longlong 0
+        get file_is_compressed longlong 0
+        if file_size1 == file_size2
+            if file_size2 == 0
+                math do_not_extract = 1
+            endif
+        endif
+        if do_not_extract != 1
+            if file_is_compressed != 1
+                log temp_name file_offset file_size2 1
+            else
+                goto file_offset 1
+                get max_block_size long 1
+                get chunks long 1
+                get original_file_size long 1
+                if original_file_size != 0
+                    xmath last_chunk "chunks - 1"
+                    math remaining_size1 = original_file_size
+                    math remaining_size2 = original_file_size
+                    xmath remaining_size1_modulus "remaining_size1 % max_block_size"
+                    math remaining_size2 - remaining_size1_modulus
+                    xmath data_offset "(chunks * 4) + 12"
+                    math data_offset x 128
+                    math chunk_offset = data_offset
+                    math chunk_offset + file_offset
+                    xmath putvarchr_size "chunks * max_block_size"
+                    putvarchr MEMORY_FILE putvarchr_size 0
+                    log MEMORY_FILE 0 0
+                    math decompressed_chunk_size = 0
+                    append
+                    for j = 0 < chunks
+                        if j = last_chunk
+                            math decompressed_chunk_size = remaining_size1
+                            math remaining_size_modulus = remaining_size1_modulus
+                        else
+                            math decompressed_chunk_size = max_block_size
+                            xmath remaining_size_modulus "remaining_size2 % max_block_size"
+                        endif
+                        get base_chunk_size long 1
+                        if base_chunk_size == remaining_size_modulus
+                            log MEMORY_FILE chunk_offset decompressed_chunk_size 1
+                        else
+                            savepos temp_01 1
+                            goto chunk_offset 1
+                            get compressed_chunk_size long 1
+                            savepos chunk_data_offset 1
+                            clog MEMORY_FILE chunk_data_offset compressed_chunk_size decompressed_chunk_size 1
+                            goto temp_01 1
+                        endif
+                        xmath chunk_size_modulus "base_chunk_size % 128"
+                        xmath chunk_size_subtract "128 - chunk_size_modulus"
+                        math chunk_offset + base_chunk_size
+                        if chunk_size_subtract != 128
+                            math chunk_offset + chunk_size_subtract
+                        endif
+                        math remaining_size1 - max_block_size
+                        math remaining_size2 - max_block_size
+                    next j
+                    append
+                    log temp_name 0 original_file_size MEMORY_FILE
+                    log MEMORY_FILE 0 0
+                endif
+            endif
+        endif
+        math idx_pos + 32
+    next i
+endfunction
