@@ -1,0 +1,155 @@
+# Ubisoft - *.pak(PAK!)
+# ---
+# James Cameron's Avatar: The Game (Windows Vista, PlayStation 3?, Xbox 360)
+ 
+math max_chunk_size = 0x10000
+
+goto 0
+idstring "PAK!"
+get pak_01 long
+if pak_01 != 4
+    print " unknown PAK version number "
+	cleanexit
+endif
+get pak_info_offset1 long
+goto pak_info_offset1
+get compressed_info_size long
+xmath pak_info_offset2 "pak_info_offset1 + compressed_info_size"
+goto pak_info_offset2
+get pak_info_chunks long
+for i = 0 < pak_info_chunks
+    get chunk1 long
+	putarray 0 i chunk1
+	get chunk2 long
+	xmath chunk2_1 "chunk2 & 0x7fffffff"
+	putarray 1 i chunk2_1
+	xmath chunk2_2 "(chunk2 & 0x80000000) >> 31"
+	putarray 2 i chunk2_2
+	xmath chunk2_3 "chunk2_1 + pak_info_offset1"
+	putarray 3 i chunk2_3
+next i
+xmath pak_info_c2 "pak_info_chunks - 1"
+for i1 = 0 < pak_info_chunks
+    getarray chunk1 0 i1
+	getarray chunk2_1 1 i1
+	if i1 != pak_info_c2
+		xmath i2 "i1 + 1"
+		getarray chunk1_1 0 i2
+		getarray chunk2_1_1 1 i2
+		xmath chunk3 "chunk1_1 - chunk1"
+		xmath chunk4 "chunk2_1_1 - chunk2_1"
+		putarray 4 i1 chunk3
+		putarray 5 i1 chunk4
+	else
+		putarray 4 i1 0
+		putarray 5 i1 0
+	endif
+next i1
+xmath pak_info_alloc "pak_info_chunks * max_chunk_size"
+putvarchr MEMORY_FILE pak_info_alloc 0
+log MEMORY_FILE 0 0
+append
+for i3 = 0 < pak_info_chunks
+    getarray chunk1 0 i3
+	getarray chunk2_1 1 i3
+	getarray chunk2_2 2 i3
+	getarray chunk2_3 3 i3
+	getarray chunk3 4 i3
+	getarray chunk4 5 i3
+	if chunk2_2 != 1
+	    log MEMORY_FILE chunk2_3 chunk3
+	else
+	    clog MEMORY_FILE chunk2_3 chunk4 chunk3
+	endif
+next i3
+append
+
+goto 0 MEMORY_FILE
+comtype lzo1x
+get info1 byte MEMORY_FILE
+if info1 != 1
+    print " unknown PAK info number. "
+	cleanexit
+endif
+get pak_files long MEMORY_FILE
+math pak_file_info_offset1 = 5
+for steps = 0 < 2
+	for i4 = 0 < pak_files
+		get file_offset long MEMORY_FILE
+		get file_size long MEMORY_FILE # full filesize
+		get file_name_hash long MEMORY_FILE
+		xmath file_chunks1 "file_size / max_chunk_size"
+		xmath file_chunks2 "file_size % max_chunk_size"
+		if file_chunks2 != 0
+			math file_chunks1 + 1
+		endif
+		if steps == 0
+			for j1 = 0 < file_chunks1
+				get file_chunk1 short MEMORY_FILE
+				get file_chunk2 short MEMORY_FILE
+			next j1
+		elif steps == 1
+		    savepos temp1 MEMORY_FILE
+			goto pak_file_info_offset2 MEMORY_FILE
+			get file_creation_date time64 MEMORY_FILE
+			get file_name_string_size byte MEMORY_FILE
+			getdstring file_name file_name_string_size MEMORY_FILE
+			savepos pak_file_info_offset2 MEMORY_FILE
+			goto temp1 MEMORY_FILE
+			callfunction extract_file 1
+		endif
+	next i4
+	if steps == 0
+	    savepos pak_file_info_offset2 MEMORY_FILE
+	endif
+	goto pak_file_info_offset1 MEMORY_FILE
+next steps
+
+startfunction extract_file
+    putvarchr MEMORY_FILE2 file_size 0
+	log MEMORY_FILE2 0 0
+	math chunk_offset = file_offset
+	math remaining_size = file_size
+	xmath file_chunks3 "file_chunks1 - 1"
+	append
+	for j2 = 0 < file_chunks1
+	    math chunk_is_compressed = 1
+	    get file_chunk11 short MEMORY_FILE
+		get file_chunk21 short MEMORY_FILE
+		math compressed_size = 0
+		math decompressed_size = 0
+		if file_chunk21 == 0
+		    math compressed_size = file_chunk11
+			if file_chunks2 == 1
+			    math decompressed_size = file_size
+			else
+			    if j2 == file_chunks3
+				    math decompressed_size = remaining_size
+				else
+				    math decompressed_size = max_chunk_size
+				endif
+			endif
+			math remaining_size - decompressed_size
+		elif file_chunk21 == 0xffff
+		    math chunk_is_compressed = 0
+			if file_chunk11 == 0
+			    math remaining_size - max_chunk_size
+				math compressed_size = max_chunk_size
+				math decompressed_size = compressed_size
+			else
+			    xmath compressed_size "(file_chunk11 ^ file_chunk21) + 1"
+				math decompressed_size = compressed_size
+				math remaining_size - decompressed_size
+			endif
+		endif
+		if chunk_is_compressed != 0
+		    clog MEMORY_FILE2 chunk_offset compressed_size decompressed_size 0
+		else
+		    log MEMORY_FILE2 chunk_offset compressed_size 0
+		endif
+		math chunk_offset + compressed_size
+	next j2
+	append
+	log file_name 0 file_size MEMORY_FILE2
+	log MEMORY_FILE2 0 0
+endfunction
