@@ -1,10 +1,12 @@
 # DOOM 3 BFG Edition (Windows[1], PlayStation 3, Xbox 360, Android, PlayStation 4[2], Xbox One[2], Nintendo Switch[2])
+# DOOM 3: VR Edition (PlayStation 4[3])
 # ---
 # [1] this was re-released as DOOM 3 through Bethesda.net Launcher in 2019.
 # [2] same case as [1], only this time targeted at different platforms.
 #     however, functionality with these versions of the game won't be guaranteed with this script
 #     so if i were you i'd open up an issue about it *fast* the moment i find out
 #     that the script doesn't work with the game files when it comes to these versions.
+# [3] an PSVR adaptation of the BFG Edition game.
 
 get name basename
 get ext extension
@@ -20,7 +22,7 @@ endian big
 
 get resources_sign long 0
 if resources_sign != 0xd000000d
-	print " this is not a .resources file from DOOM 3 BFG Edition. \n if in doubt, find me(AnonBaiter) here at one of my github repositories below and raise a issue there. \n https://github.com/AnonBaiter/le_quickbms_script_compendium "
+	print " this is not a .resources file from DOOM 3 BFG Edition. "
 	cleanexit
 endif
 get resources_info_offset long 0
@@ -30,12 +32,12 @@ get resources_files long 0
 if EXISTS = 1
 	get crc_sign_01 long 1
 	if crc_sign_01 != 0xcc00cc00
-		print " this is not a .crc file from DOOM 3 BFG Edition. \n if in doubt, find me(AnonBaiter) here at one of my github repositories below and raise a issue there. \n https://github.com/AnonBaiter/le_quickbms_script_compendium "
+		print " this is not a .crc file from DOOM 3 BFG Edition. "
 		cleanexit
 	endif
 	get crc_sign_02 long 1
 	if crc_sign_02 != 1
-		print " this is not a .crc file from DOOM 3 BFG Edition. \n if in doubt, find me(AnonBaiter) here at one of my github repositories below and raise a issue there. \n https://github.com/AnonBaiter/le_quickbms_script_compendium "
+		print " this is not a .crc file from DOOM 3 BFG Edition. "
 		cleanexit
 	endif
 	get crc_name_hash long 1
