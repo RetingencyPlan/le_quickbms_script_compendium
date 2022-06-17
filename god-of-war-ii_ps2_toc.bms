@@ -1,0 +1,70 @@
+# GOD OF WAR II (PS2) - godofwar.toc
+# ---
+# different (if not evolved) TOC format from godofwar.toc from GOD OF WAR 2005, to the point they're barely identical from each other.
+# there is now a file count at the start of the format, followed by proper TOC which contains the following:
+# the TOC is now divided into two parts - one containing file name field and other stuff, and the other where it's nothing but file name fields.
+# there is now a file count at the start of the format, and it actually accounts for the former.
+# as for the first part itself, there are four fields that contain the following.
+# an expanded file name field, file size field, some field telling how many times the file is stored in the paks (seriously!) and an file offset index field.
+# the file duplicate thing in particular influences how the second part works, and the index field is just a pointer for what contains the following.
+# the second part contains nothing but file offset fields. in fact it's how the index field from the first part exists in the first place.
+# the index field itself serves as a look up for the file offset fields, this way said offset value gets obtained rather easily.
+# that said, there can be dozens of file offset fields holding the same file in different parts of two pak files, meaning even file duplicates are present there as well.
+# as for the file offset value itself, it's obtained through an if-else condition where
+# if a certain number is high enough, said number must be added through another number, like this:
+# if 10007466 > 9999999 then 10007466 + (-10000000) = 7466.
+# much of the info has been gathered through smpd.irx.
+
+get name1 filename
+if name1 != "godofwar.toc"
+	cleanexit
+endif
+
+goto 0
+get files long
+math pos1 = 4
+xmath pos2 "pos1 + (files * 0x24)"
+set file_offset_threshold long 0x98967f
+set file_offset_seed long 0xff676980
+math part_number = 0
+for i = 0 < files
+	goto pos1
+	getdstring file_name 24
+	get file_size long
+	get file_duplicates long
+	get file_offset_index long
+	math file_offset_index * 4
+	math file_offset_index + pos2
+	for i1 = 0 < file_duplicates
+		# extracting the same file as many times as the file_duplicates value dictates
+		goto file_offset_index
+		get file_offset long
+		# in case file_offset value passes a certain threshold.
+		# setting part_number here is also important as the script would just not work without it.
+		if file_offset > file_offset_threshold
+			math file_offset + file_offset_seed
+			math part_number = 2
+		else
+			math part_number = 1
+		endif
+		math file_offset << 11
+		math file_offset & 0xffffffff
+		# ^ here to accomodate quickbms_4gb_files usage, quickbms works fine without it.
+		# but if left unchecked, quickbms_4gb_files could throw out an error saying it could not reach this offset within an loaded pak file.
+		# and given how pak files are usually 3.96GB this was a necessity.
+		callfunction extract_file 1
+		math file_offset_index + 4
+	next i1
+	math pos1 + 36
+next i
+
+startfunction extract_file
+	# pak loading feature inherited from the TOC format of GOD OF WAR 2005.
+	# as said in that script, the devs had to find a way to ensure the game
+	# laoded any file it wanted to load within an DVD9 disc, hence
+	# why we have part1.pak and part2.pak, respectively.
+	# the script streamlines this pak loading process.
+	string part_name p "part%u.pak" part_number
+	open FDSE part_name 1
+	log file_name file_offset file_size 1
+endfunction
