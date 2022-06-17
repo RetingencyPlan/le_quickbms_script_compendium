@@ -7,32 +7,32 @@
 
 get name1 filename
 if name1 != "godofwar.toc"
-	cleanexit
+    cleanexit
 endif
 
 for i = 0
-	getdstring file_name 12
-	if file_name == ""
-		# a null delimiter so the game can say "stop" when it finds out it has no more files to dig into memory
-		# (either by streaming stuff into memory or just loading the whole thing straight into it, which rarely happens)
-		print " no more files left "
-		break
-	endif
-	get part_number long
-	math part_number + 1
-	get file_size long
-	get file_offset long
-	math file_offset << 11
-	callfunction extract_file 1
+    getdstring file_name 12
+    if file_name == ""
+        # a null delimiter so the game can say "stop" when it finds out it has no more files to dig into memory
+        # (either by streaming stuff into memory or just loading the whole thing straight into it, which rarely happens)
+        print " no more files left "
+        break
+    endif
+    get part_number long
+    math part_number + 1
+    get file_size long
+    get file_offset long
+    math file_offset << 11
+    callfunction extract_file 1
 next i
 
 startfunction extract_file
-	# the TOC format uses two pak files - part1.pak and part2.pak
-	# the game loads those two files depending on where the file is at.
-	# as GOD OF WAR 2005 is a DVD9 game the devs had make sure all data is loaded
-	# anywhere the game wants within the disc, hence these two files.
-	# pak loading is streamlined here for simplicity sake.
-	string part_name p "part%u.pak" part_number
-	open FDSE part_name 1
-	log file_name file_offset file_size 1
+    # the TOC format uses two pak files - part1.pak and part2.pak
+    # the game loads those two files depending on where the file is at.
+    # as GOD OF WAR 2005 is a DVD9 game the devs had make sure all data is loaded
+    # anywhere the game wants within the disc, hence these two files.
+    # pak loading is streamlined here for simplicity sake.
+    string part_name p "part%u.pak" part_number
+    open FDSE part_name 1
+    log file_name file_offset file_size 1
 endfunction
